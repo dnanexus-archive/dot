@@ -25,13 +25,16 @@ MultiSegmentScale.prototype.set_data = function(data, key_name, length_name) {
 		if (length === undefined || isNaN(length)) {
 			console.error(length_name, "is not a key in", data[i]);
 		}
-		this.size_dict[String(data[i][key_name])] = length;
-		this.offset_dict[String(data[i][key_name])] = this.total;
-		this.total += length + this.padding;
+		if (this.size_dict[String(data[i][key_name])] === undefined) {
+			this.size_dict[String(data[i][key_name])] = length;
+			this.offset_dict[String(data[i][key_name])] = this.total;
+			this.total += length + this.padding;
+		}
 		if (isNaN(this.total)) {
 			console.error("Total in MultiSegmentScale is not a number.");
 		}
 	}
+	console.log(this.offset_dict);
 	this.hidden_scale.domain([0,this.total]);
 }
 
@@ -47,8 +50,12 @@ MultiSegmentScale.prototype.get = function(key, position) {
 
 MultiSegmentScale.prototype.getBoundaries = function() {
 	var boundaries = [];
+	console.log("offset_dict:", this.offset_dict);
 	for (var key in this.offset_dict) {
-		boundaries.push({name: key, start: this.hidden_scale(this.offset_dict[key]), end: this.hidden_scale(this.offset_dict[key]+this.size_dict[key])});
+		boundaries.push({
+			name: key, 
+			start: this.hidden_scale(this.offset_dict[key]), 
+			end: this.hidden_scale(this.offset_dict[key]+this.size_dict[key])});
 	}
 	return boundaries;
 }

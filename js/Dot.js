@@ -12,7 +12,7 @@ var Dot = function(element, config) {
 	this.data = config.data;
 
 	this.settings = {
-		padding: {left: 70, bottom: 70}
+		padding: {left: 120, bottom: 100}
 	}
 
 
@@ -21,8 +21,8 @@ var Dot = function(element, config) {
 
 	// scales
 	this.scales = {};
-	this.scales.x = new MultiSegmentScale({data: this.data, key_name: this.k.x, length_name: [this.k.x + "_length"], padding_fraction: _settings.padding_fraction});
-	this.scales.y = new MultiSegmentScale({data: this.data, key_name: this.k.y, length_name: [this.k.y + "_length"], padding_fraction: _settings.padding_fraction});
+	this.scales.x = new MultiSegmentScale({data: this.data, key_name: this.k.x, length_name: [this.k.x + "_length"]});
+	this.scales.y = new MultiSegmentScale({data: this.data, key_name: this.k.y, length_name: [this.k.y + "_length"]});
 
 	this.setUp();
 	this.draw();
@@ -78,15 +78,19 @@ Dot.prototype.draw = function() {
 	c.fillRect(0,0,this.layout.width, this.layout.height);
 	
 	//////////////////////////////////////    Axis titles    //////////////////////////////////////
+	
+	// X-axis label (this.k.x is "ref" by default)
 	c.fillStyle = "#000000";
 	c.font="20px Arial";
 	c.textAlign = "center";
 	c.fillText(this.k.x, this.layout.width/2, this.config.height - 10);
 
+	// Y-axis label (this.k.y is "query" by default)
+	c.save()
 	c.rotate(-Math.PI/2);
 	c.textAlign = "center";
 	c.fillText(this.k.y, -this.layout.height/2, -this.layout.left + 20);
-	c.rotate(Math.PI/2); // undo the rotation so we don't mess up everything else!
+	c.restore() // undo the rotation so we don't mess up everything else!
 
 	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
 
@@ -94,22 +98,37 @@ Dot.prototype.draw = function() {
 
 	// Vertical lines for sequence boundaries
 	const boundariesX = this.scales.x.getBoundaries();
-	console.log(boundariesX);
+	c.font="10px Arial";
+	c.textAlign = "right";
+	
 	for (var i = 0; i < boundariesX.length; i++) {
 		// Scale has already been applied inside getBoundaries()
 		c.moveTo(boundariesX[i].start,0);
 		c.lineTo(boundariesX[i].start,this.layout.height);
+		// c.fillText(boundariesX[i].name, (boundariesX[i].start+boundariesX[i].end)/2, this.layout.height + 20);
+		c.save();
+		c.translate((boundariesX[i].start+boundariesX[i].end)/2,this.layout.height + 20);
+		c.rotate(-Math.PI/4);
+		c.fillText(boundariesX[i].name, 0, 0);
+		c.restore();
 	}
+	
+
+
+	
 
 	// Horizontal lines for sequence boundaries
+	c.font="10px Arial";
+	c.textAlign = "right";
 	const boundariesY = this.scales.y.getBoundaries();
-	console.log(boundariesY);
 	for (var i = 0; i < boundariesY.length; i++) {
 		// Scale has already been applied inside getBoundaries()
 		c.moveTo(0,boundariesY[i].start);
 		c.lineTo(this.layout.width,boundariesY[i].start);
+		c.fillText(boundariesY[i].name, -10, (boundariesY[i].start+boundariesY[i].end)/2);
 	}
 	c.stroke();
+
 
 	/////////////////////////////////////////    Alignments    /////////////////////////////////////////
 
