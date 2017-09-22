@@ -60,25 +60,68 @@ Dot.prototype.setUp = function() {
 
 Dot.prototype.draw = function() {
 
-	// Translate() shifts things over everytime we call it, so reset first to clear any previous translations
-	this.canvas.setTransform(1, 0, 0, 1, 0, 0);
+	var c = this.canvas;
 
-	this.canvas.translate(this.layout.left, this.layout.top);
-	this.canvas.rect(0,0,this.layout.width, this.layout.height);
+	// Translate everything relative to the inner plotting area
+	c.setTransform(1, 0, 0, 1, this.layout.left, this.layout.top);
 
-	// Blue background for testing
-	this.canvas.fillStyle = "#dbf0ff";
-	this.canvas.fillRect(0,0,this.layout.width, this.layout.height);
 	
+	
+	
+	////////////////////////////////////////    Borders    ////////////////////////////////////////
+	
+	// Inner plot border
+	c.rect(0,0,this.layout.width, this.layout.height);
 
+	// Blue background on inner plot for testing
+	c.fillStyle = "#dbf0ff";
+	c.fillRect(0,0,this.layout.width, this.layout.height);
+	
+	//////////////////////////////////////    Axis titles    //////////////////////////////////////
+	c.fillStyle = "#000000";
+	c.font="20px Arial";
+	c.textAlign = "center";
+	c.fillText(this.k.x, this.layout.width/2, this.config.height - 10);
+
+	c.rotate(-Math.PI/2);
+	c.textAlign = "center";
+	c.fillText(this.k.y, -this.layout.height/2, -this.layout.left + 20);
+	c.rotate(Math.PI/2); // undo the rotation so we don't mess up everything else!
+
+	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
+
+	c.strokeStyle = "#AAAAAA";
+
+	// Vertical lines for sequence boundaries
+	const boundariesX = this.scales.x.getBoundaries();
+	console.log(boundariesX);
+	for (var i = 0; i < boundariesX.length; i++) {
+		// Scale has already been applied inside getBoundaries()
+		c.moveTo(boundariesX[i].start,0);
+		c.lineTo(boundariesX[i].start,this.layout.height);
+	}
+
+	// Horizontal lines for sequence boundaries
+	const boundariesY = this.scales.y.getBoundaries();
+	console.log(boundariesY);
+	for (var i = 0; i < boundariesY.length; i++) {
+		// Scale has already been applied inside getBoundaries()
+		c.moveTo(0,boundariesY[i].start);
+		c.lineTo(this.layout.width,boundariesY[i].start);
+	}
+	c.stroke();
+
+	/////////////////////////////////////////    Alignments    /////////////////////////////////////////
 
 	// Draw lines
+	c.beginPath();
+	c.strokeStyle = "#000000";
 	for (var i = 0; i < this.data.length; i++) {
 		var d = this.data[i];
-		this.canvas.moveTo(this.scales.x.get( d[this.k.x], d[this.k.x + '_start'] ),this.scales.y.get( d[this.k.y], d[this.k.y + '_start'] ));
-		this.canvas.lineTo(this.scales.x.get( d[this.k.x], d[this.k.x + '_end'] ),this.scales.y.get( d[this.k.y], d[this.k.y + '_end'] ));
+		c.moveTo(this.scales.x.get( d[this.k.x], d[this.k.x + '_start'] ),this.scales.y.get( d[this.k.y], d[this.k.y + '_start'] ));
+		c.lineTo(this.scales.x.get( d[this.k.x], d[this.k.x + '_end'] ),this.scales.y.get( d[this.k.y], d[this.k.y + '_end'] ));
 	}
-	this.canvas.stroke();
+	c.stroke();
 }
 
 

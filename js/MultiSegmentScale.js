@@ -42,7 +42,17 @@ MultiSegmentScale.prototype.get = function(key, position) {
 		return NaN;
 	}
 	return this.hidden_scale(offset + Number(position));
+
 }
+
+MultiSegmentScale.prototype.getBoundaries = function() {
+	var boundaries = [];
+	for (var key in this.offset_dict) {
+		boundaries.push({name: key, start: this.hidden_scale(this.offset_dict[key]), end: this.hidden_scale(this.offset_dict[key]+this.size_dict[key])});
+	}
+	return boundaries;
+}
+
 MultiSegmentScale.prototype.contains = function(key,position) {
 	var size = this.size_dict[String(key)];
 	if (size == undefined) {
