@@ -1,8 +1,14 @@
 <!doctype html>
 <head>
-	<title>interactive svg + canvas plot</title>
+	<title>Dot: Interactive dot plot for genome-genome alignments</title>
 	<style>
-		body { margin: 0; }
+		body { 
+			margin: 0; 
+			font-family: Arial;
+		}
+		h2 {
+			padding: 2vmin 2vmin 2vmin 2vmin;
+		}
 		rect { fill: transparent; }
 	</style>
 	<script src="https://d3js.org/d3.v4.min.js"></script>
@@ -10,6 +16,9 @@
 	<script src="js/Dot.js"></script>
 </head>
 <body>
+
+<h2>Dot: Interactive dot plot for genome-genome alignments</h2>
+
 	<script type='text/javascript'>
 
 
@@ -32,7 +41,7 @@ var _map = {	width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.80,
 			};
 
 
-var _plotting_area = 
+var _app_area = 
 	d3.select('body')
 		.append('div')
 		.attr("id","plotting-area");
@@ -46,8 +55,8 @@ var _scales = {x: null, y: null};
 var _dot;
 /* PLOT */
 
-function get_data() {
 
+function chooseData(async_callback) {
 	const numericColumns = ["ref_length", "ref_start", "ref_end", "query_length", "query_start", "query_end", "alignment_length"];
 	_data = d3.csvParse(data_string, function(d) {
 		// type the following columns as numbers
@@ -55,7 +64,16 @@ function get_data() {
 		return d;
 	});
 
-	_dot = new Dot(_plotting_area, {data: _data, height: _map.height, width: _map.width});
+	async_callback(_data)
+}
+
+
+
+function get_data() {
+
+	
+	_dot = new DotApp(_app_area, {dataLoader: chooseData, height: _map.height, width: _map.width});
+
 }
 
 get_data();

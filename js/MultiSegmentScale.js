@@ -34,7 +34,6 @@ MultiSegmentScale.prototype.set_data = function(data, key_name, length_name) {
 			console.error("Total in MultiSegmentScale is not a number.");
 		}
 	}
-	console.log(this.offset_dict);
 	this.hidden_scale.domain([0,this.total]);
 }
 
@@ -50,7 +49,7 @@ MultiSegmentScale.prototype.get = function(key, position) {
 
 MultiSegmentScale.prototype.getBoundaries = function() {
 	var boundaries = [];
-	console.log("offset_dict:", this.offset_dict);
+
 	for (var key in this.offset_dict) {
 		boundaries.push({
 			name: key, 

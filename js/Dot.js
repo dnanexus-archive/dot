@@ -1,4 +1,11 @@
-var Dot = function(element, config) {
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////      Dot Plot       /////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+var DotPlot = function(element, config) {
 	
 	this.element = element;
 
@@ -9,12 +16,16 @@ var Dot = function(element, config) {
 	// Set up config variables
 	this.height = config.height;
 	this.width = config.width;
-	this.data = config.data;
+	this.data = undefined;
 
 	this.settings = {
 		padding: {left: 120, bottom: 100}
 	}
 
+}
+
+DotPlot.prototype.setData = function(data) {
+	this.data = data
 
 	// Keys hardcoded for now, but check periodically that plot still works when these are swapped
 	this.k = { x: "ref", y: "query" };
@@ -24,11 +35,13 @@ var Dot = function(element, config) {
 	this.scales.x = new MultiSegmentScale({data: this.data, key_name: this.k.x, length_name: [this.k.x + "_length"]});
 	this.scales.y = new MultiSegmentScale({data: this.data, key_name: this.k.y, length_name: [this.k.y + "_length"]});
 
-	this.setUp();
-	this.draw();
+	this.drawStatics();
+
+	this.drawGrid();
+	this.drawAlignments();
 }
 
-Dot.prototype.setUp = function() {
+DotPlot.prototype.drawStatics = function() {
 	// Set up the static parts of the view that only change when width or height change, but not when zooming or changing data
 
 	// Draw initial canvas
@@ -52,29 +65,17 @@ Dot.prototype.setUp = function() {
 		height: this.height - this.settings.padding.bottom
 	}
 
-	// Set scales with the correct inner size, but don't use them to translate, since we will be applying a translate in the draw function itself
-	this.scales.x.range([0, this.layout.width]);
-	this.scales.y.range([this.layout.height, 0]);
-
-}
-
-Dot.prototype.draw = function() {
-
+	
 	var c = this.canvas;
-
-	// Translate everything relative to the inner plotting area
 	c.setTransform(1, 0, 0, 1, this.layout.left, this.layout.top);
 
-	
-	
-	
 	////////////////////////////////////////    Borders    ////////////////////////////////////////
 	
 	// Inner plot border
 	c.rect(0,0,this.layout.width, this.layout.height);
 
 	// Blue background on inner plot for testing
-	c.fillStyle = "#dbf0ff";
+	c.fillStyle = "#ffffff"; //"#dbf0ff";
 	c.fillRect(0,0,this.layout.width, this.layout.height);
 	
 	//////////////////////////////////////    Axis titles    //////////////////////////////////////
@@ -92,20 +93,36 @@ Dot.prototype.draw = function() {
 	c.fillText(this.k.y, -this.layout.height/2, -this.layout.left + 20);
 	c.restore() // undo the rotation so we don't mess up everything else!
 
+	//////////////////////////////////////    Set up scales for plotting    //////////////////////////////////////
+
+	// Set scales with the correct inner size, but don't use them to translate, since we will be applying a translate in the draw function itself
+	this.scales.x.range([0, this.layout.width]);
+	this.scales.y.range([this.layout.height, 0]);
+
+}
+
+DotPlot.prototype.drawGrid = function() {
+
+	var c = this.canvas;
+
+	// Translate everything relative to the inner plotting area
+	c.setTransform(1, 0, 0, 1, this.layout.left, this.layout.top);
+
+	
 	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
 
 	c.strokeStyle = "#AAAAAA";
+	c.fillStyle = "#000000";
 
-	// Vertical lines for sequence boundaries
+	// Vertical lines for sequence boundaries along the x-axis
 	const boundariesX = this.scales.x.getBoundaries();
 	c.font="10px Arial";
 	c.textAlign = "right";
-	
 	for (var i = 0; i < boundariesX.length; i++) {
 		// Scale has already been applied inside getBoundaries()
 		c.moveTo(boundariesX[i].start,0);
 		c.lineTo(boundariesX[i].start,this.layout.height);
-		// c.fillText(boundariesX[i].name, (boundariesX[i].start+boundariesX[i].end)/2, this.layout.height + 20);
+		// rotated axis labels
 		c.save();
 		c.translate((boundariesX[i].start+boundariesX[i].end)/2,this.layout.height + 20);
 		c.rotate(-Math.PI/4);
@@ -113,11 +130,7 @@ Dot.prototype.draw = function() {
 		c.restore();
 	}
 	
-
-
-	
-
-	// Horizontal lines for sequence boundaries
+	// Horizontal lines for sequence boundaries along the y-axis
 	c.font="10px Arial";
 	c.textAlign = "right";
 	const boundariesY = this.scales.y.getBoundaries();
@@ -127,11 +140,14 @@ Dot.prototype.draw = function() {
 		c.lineTo(this.layout.width,boundariesY[i].start);
 		c.fillText(boundariesY[i].name, -10, (boundariesY[i].start+boundariesY[i].end)/2);
 	}
-	c.stroke();
+	c.stroke();	
+}
 
+DotPlot.prototype.drawAlignments = function() {
+	var c = this.canvas;
 
 	/////////////////////////////////////////    Alignments    /////////////////////////////////////////
-
+	
 	// Draw lines
 	c.beginPath();
 	c.strokeStyle = "#000000";
@@ -143,12 +159,10 @@ Dot.prototype.draw = function() {
 	c.stroke();
 }
 
-
-Dot.prototype.validateConfig = function(config) {
+DotPlot.prototype.validateConfig = function(config) {
 	const requiredTypes = {
 		height: "number",
-		width: "number",
-		data: "object"
+		width: "number"
 	}
 
 	for (var key in requiredTypes) {
@@ -159,3 +173,35 @@ Dot.prototype.validateConfig = function(config) {
 		}
 	}
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////      Dot App       //////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+var DotApp = function(element, config) {
+
+	this.element = element;
+
+	this.plot_element = this.element.append("div");
+	this.dataLoader = config.dataLoader;
+
+	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width});	
+	this.dataLoader(this.setData.bind(this));
+}
+
+
+DotApp.prototype.setData = function(data) {
+	this.data = data;
+
+	this.dotplot.setData(data);
+}
+
+
+
+
+
