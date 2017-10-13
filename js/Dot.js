@@ -4,12 +4,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 var DotPlot = function(element, config) {
 	
 	this.element = element;
 
-	this.validateConfig(config);
+	validateConfig(config);
 
 	this.config = config;
 	
@@ -22,18 +21,36 @@ var DotPlot = function(element, config) {
 		padding: {left: 120, bottom: 100}
 	}
 
+	this.state = {
+		all_refs: null,
+		all_queries: null,
+		selected_refs: null,
+		selected_queries: null,
+		annotation_tracks: [],
+		data_by_chromosome: {},
+	};
+
 }
 
 DotPlot.prototype.setData = function(data) {
-	this.data = data
+	this.data = data;
+
+	// Set reference and query sequence sizes:
+	this.state.all_refs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
+	this.state.all_queries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
+
+	this.selectRefs([0,1]); // testing chromosome selection
+	this.selectQueries();
+
+	// Store data indexed by chromosome:
+	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), data);
 
 	// Keys hardcoded for now, but check periodically that plot still works when these are swapped
 	this.k = { x: "ref", y: "query" };
 
 	// scales
 	this.scales = {};
-	this.scales.x = new MultiSegmentScale({data: this.data, key_name: this.k.x, length_name: [this.k.x + "_length"]});
-	this.scales.y = new MultiSegmentScale({data: this.data, key_name: this.k.y, length_name: [this.k.y + "_length"]});
+	this.updateScales();
 
 	this.drawStatics();
 
@@ -41,21 +58,46 @@ DotPlot.prototype.setData = function(data) {
 	this.drawAlignments();
 }
 
+
+
+DotPlot.prototype.updateScales = function() {
+	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
+	this.scales.y = new MultiSegmentScale({data: this.state.selected_queries, key_name: 0, length_name: 1});
+}
+
+DotPlot.prototype.selectRefs = function(refIndices) {
+	var state = this.state;
+	if (refIndices === undefined) {
+		state.selected_refs = state.all_refs;
+	} else {
+		state.selected_refs = R.map( function(i) {return state.all_refs[i]}, refIndices);
+	}
+}
+DotPlot.prototype.selectQueries = function(queryIndices) {
+	var state = this.state;
+	if (queryIndices === undefined) {
+		state.selected_queries = state.all_queries;
+	} else {
+		state.selected_queries = R.map( function(i) {return state.all_queries[i]}, queryIndices);
+	}
+}
+
 DotPlot.prototype.drawStatics = function() {
 	// Set up the static parts of the view that only change when width or height change, but not when zooming or changing data
 
 	// Draw initial canvas
-	this.canvas = this.element.append('canvas')
+	this.canvas = this.element.append('canvas');
+	this.context = this.canvas
 			.attr('width', this.width)
 			.attr('height', this.height)
 			.node().getContext('2d');
 
-
+	var c = this.context;
 
 	// Draw outside border rectangle
-	this.canvas.setTransform(1, 0, 0, 1, 0, 0);
-	this.canvas.rect(0,0,this.width,this.height);
-	this.canvas.stroke();
+	c.setTransform(1, 0, 0, 1, 0, 0);
+	c.rect(0,0,this.width,this.height);
+	c.stroke();
 
 	// Inside plotting area:
 	this.layout = {
@@ -66,7 +108,7 @@ DotPlot.prototype.drawStatics = function() {
 	}
 
 	
-	var c = this.canvas;
+	
 	c.setTransform(1, 0, 0, 1, this.layout.left, this.layout.top);
 
 	////////////////////////////////////////    Borders    ////////////////////////////////////////
@@ -74,9 +116,9 @@ DotPlot.prototype.drawStatics = function() {
 	// Inner plot border
 	c.rect(0,0,this.layout.width, this.layout.height);
 
-	// Blue background on inner plot for testing
-	c.fillStyle = "#ffffff"; //"#dbf0ff";
-	c.fillRect(0,0,this.layout.width, this.layout.height);
+	// Background on inner plot
+	// c.fillStyle = "#ffffff"; //"#dbf0ff";
+	// c.fillRect(0,0,this.layout.width, this.layout.height);
 	
 	//////////////////////////////////////    Axis titles    //////////////////////////////////////
 	
@@ -99,11 +141,13 @@ DotPlot.prototype.drawStatics = function() {
 	this.scales.x.range([0, this.layout.width]);
 	this.scales.y.range([this.layout.height, 0]);
 
+
+
 }
 
 DotPlot.prototype.drawGrid = function() {
 
-	var c = this.canvas;
+	var c = this.context;
 
 	// Translate everything relative to the inner plotting area
 	c.setTransform(1, 0, 0, 1, this.layout.left, this.layout.top);
@@ -144,22 +188,31 @@ DotPlot.prototype.drawGrid = function() {
 }
 
 DotPlot.prototype.drawAlignments = function() {
-	var c = this.canvas;
+	var c = this.context;
 
 	/////////////////////////////////////////    Alignments    /////////////////////////////////////////
+	
+	var state = this.state;
+	var scales = this.scales;
+	var x = this.k.x;
+	var y = this.k.y;
 	
 	// Draw lines
 	c.beginPath();
 	c.strokeStyle = "#000000";
-	for (var i = 0; i < this.data.length; i++) {
-		var d = this.data[i];
-		c.moveTo(this.scales.x.get( d[this.k.x], d[this.k.x + '_start'] ),this.scales.y.get( d[this.k.y], d[this.k.y + '_start'] ));
-		c.lineTo(this.scales.x.get( d[this.k.x], d[this.k.x + '_end'] ),this.scales.y.get( d[this.k.y], d[this.k.y + '_end'] ));
-	}
+	
+	R.map( function(refInfo) {
+		var ref = refInfo[0];
+		R.map( function(d) {
+			c.moveTo(scales.x.get( d[x], d[x + '_start'] ), scales.y.get( d[y], d[y + '_start'] ));
+			c.lineTo(scales.x.get( d[x], d[x + '_end']   ), scales.y.get( d[y], d[y + '_end'] ));
+		}, state.data_by_chromosome[ref])
+	}, state.selected_refs)
+
 	c.stroke();
 }
 
-DotPlot.prototype.validateConfig = function(config) {
+function validateConfig(config) {
 	const requiredTypes = {
 		height: "number",
 		width: "number"

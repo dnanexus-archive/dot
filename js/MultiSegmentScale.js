@@ -40,8 +40,8 @@ MultiSegmentScale.prototype.set_data = function(data, key_name, length_name) {
 MultiSegmentScale.prototype.get = function(key, position) {
 	var offset = this.offset_dict[String(key)];
 	if (offset == undefined) {
-		console.log("Error, unrecognized key in MultiSegmentScale: " + String(key));
-		return NaN;
+		// console.log("Error, unrecognized key in MultiSegmentScale: " + String(key));
+		return undefined;
 	}
 	return this.hidden_scale(offset + Number(position));
 
