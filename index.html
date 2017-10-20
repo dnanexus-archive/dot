@@ -6,6 +6,11 @@
 			margin: 0; 
 			font-family: Arial;
 		}
+		svg, canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+		}
 		h2 {
 			padding: 2vmin 2vmin 2vmin 2vmin;
 		}
@@ -45,7 +50,8 @@ var _map = {	width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.80,
 var _app_area = 
 	d3.select('body')
 		.append('div')
-		.attr("id","plotting-area");
+		.attr("id","plotting-area")
+		.style("position","relative");
 
 /* PREPARE DATA and SCALES */
 var _data = null;
