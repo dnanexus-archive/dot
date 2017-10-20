@@ -112,8 +112,10 @@ DotPlot.prototype.drawStatics = function() {
 		.attr("transform", "translate(" + this.state.layout.inner.left + "," + this.state.layout.inner.top + ")");
 
 	this.canvas
-		.attr('width', this.state.layout.whole.width)
-		.attr('height', this.state.layout.whole.height);
+		.style("top", this.state.layout.inner.top + "px")
+		.style("left", this.state.layout.inner.left + "px")
+		.attr('width', this.state.layout.inner.width)
+		.attr('height', this.state.layout.inner.height);
 
 
 	//////////////////////////////////////    Set up scales for plotting    //////////////////////////////////////
@@ -138,7 +140,7 @@ DotPlot.prototype.drawStatics = function() {
 		.attr("y", this.state.layout.inner.top)
 		.attr("width", this.state.layout.inner.width)
 		.attr("height", this.state.layout.inner.height)
-		.style("stroke","red");
+		.style("stroke","black");
 
 	//////////////////////////////////////    Axis titles    //////////////////////////////////////
 	// Ref
@@ -166,7 +168,7 @@ DotPlot.prototype.drawGrid = function() {
 	var c = this.context;
 
 	// Translate everything relative to the inner plotting area
-	c.setTransform(1, 0, 0, 1, this.state.layout.inner.left, this.state.layout.inner.top);
+	c.setTransform(1, 0, 0, 1, 0, 0);
 	
 	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
 
@@ -186,12 +188,6 @@ DotPlot.prototype.drawGrid = function() {
 	// 	// Scale has already been applied inside getBoundaries()
 	// 	c.moveTo(boundariesX[i].start,0);
 	// 	c.lineTo(boundariesX[i].start,this.state.layout.inner.height);
-	// 	// rotated axis labels
-	// 	c.save();
-	// 	c.translate((boundariesX[i].start+boundariesX[i].end)/2,this.state.layout.inner.height + 20);
-	// 	c.rotate(-Math.PI/4);
-	// 	c.fillText(boundariesX[i].name, 0, 0);
-	// 	c.restore();
 	// }
 	
 	// // Horizontal lines for sequence boundaries along the y-axis
@@ -202,7 +198,6 @@ DotPlot.prototype.drawGrid = function() {
 	// 	// Scale has already been applied inside getBoundaries()
 	// 	c.moveTo(0,boundariesY[i].start);
 	// 	c.lineTo(this.state.layout.inner.width, boundariesY[i].start);
-	// 	c.fillText(boundariesY[i].name, -10, (boundariesY[i].start+boundariesY[i].end)/2);
 	// }
 	// c.stroke();	
 
@@ -218,7 +213,7 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","verticalGrid");
 	
 	verticalLines.merge(newVerticalLines)
-		.style("stroke","red")
+		.style("stroke","#AAAAAA")
 		.attr("x1", function(d) {return d.start})
 		.attr("y1", 0)
 		.attr("x2", function(d) {return d.start})
@@ -234,7 +229,7 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","horizontalGrid");
 
 	horizontalLines.merge(newHorizontalLines)
-		.style("stroke","red")
+		.style("stroke","#AAAAAA")
 		.attr("x1", 0)
 		.attr("y1", function(d) {return d.start})
 		.attr("x2", this.state.layout.inner.width)
@@ -298,8 +293,7 @@ DotPlot.prototype.drawAlignments = function() {
 	var y = this.k.y;
 	
 	// Draw lines
-
-	c.setTransform(1, 0, 0, 1, this.state.layout.inner.left, this.state.layout.inner.top);
+	c.setTransform(1, 0, 0, 1, 0, 0);
 
 	c.beginPath();
 	c.strokeStyle = "#000000";
