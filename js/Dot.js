@@ -24,6 +24,8 @@ var DotPlot = function(element, config) {
 		selected_refs: null,
 		selected_queries: null,
 		data_by_chromosome: {},
+		xAnnotations: [],
+		yAnnotations: [],
 	};
 
 	this.k = { x: "ref", y: "query" };
@@ -38,6 +40,9 @@ var DotPlot = function(element, config) {
 	this.svg.append("text").attr("class","xTitle");
 	this.svg.append("g").attr("class","yTitle").append("text").attr("class","yTitle");
 	this.svg.append("g").attr("class","innerPlot");
+
+	this.svg.xAnnotations = this.svg.append("g");
+	this.svg.yAnnotations = this.svg.append("g");
 
 }
 
@@ -58,13 +63,23 @@ DotPlot.prototype.setData = function(data) {
 	this.scales = {};
 	this.updateScales();
 
-	this.drawStatics();
 
+	///////////////////////////////////////////////////////////////
+	// TESTING ANNOTATION TRACKS:
+	this.addAnnotationTrack("x", "data goes here");
+	this.addAnnotationTrack("x", "data goes here");
+	this.addAnnotationTrack("y", "data goes here");
+	this.addAnnotationTrack("y", "data goes here");
+	///////////////////////////////////////////////////////////////
+
+
+	this.drawLayout();
 	this.drawGrid();
 	this.drawAlignments();
+	this.drawAnnotationTracks();
+
+
 }
-
-
 
 DotPlot.prototype.updateScales = function() {
 	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
@@ -88,7 +103,34 @@ DotPlot.prototype.selectQueries = function(queryIndices) {
 	}
 }
 
-DotPlot.prototype.drawStatics = function() {
+DotPlot.prototype.addAnnotationTrack = function(side, data) {
+	if (side == "x") {
+		this.state.xAnnotations.push(new Track({side: side, element: this.svg.xAnnotations.append("g"), data: data}));
+	} else if (side == "y") {
+		this.state.yAnnotations.push(new Track({side: side, element: this.svg.yAnnotations.append("g"), data: data}));
+	} else {
+		throw("in addAnnotationTrack, side must by 'x' or 'y'");
+	}
+}
+
+DotPlot.prototype.drawAnnotationTracks = function() {
+	this.svg.xAnnotations
+		.attr("transform","translate(" + this.state.layout.annotations.x.left + "," + this.state.layout.annotations.x.top + ")");
+	this.svg.yAnnotations
+		.attr("transform","translate(" + this.state.layout.annotations.y.left + "," + this.state.layout.annotations.y.top + ")");
+
+	for (var i in this.state.xAnnotations) {
+		this.state.xAnnotations[i].width(this.state.layout.inner.width);
+		this.state.xAnnotations[i].draw();
+	}
+	for (var i in this.state.yAnnotations) {
+		this.state.yAnnotations[i].height(this.state.layout.inner.height);
+		this.state.yAnnotations[i].draw();
+	}
+	console.log(this.state.yAnnotations);
+}
+
+DotPlot.prototype.drawLayout = function() {
 	
 	// Set up the static parts of the view that only change when width or height change, but not when zooming or changing data
 	var paddingLeft = 120;
@@ -96,12 +138,41 @@ DotPlot.prototype.drawStatics = function() {
 	var paddingTop = 10;
 	var paddingRight = 10;
 
+	var annotationThicknessX = 0;
+	for (var i in this.state.xAnnotations) {
+		this.state.xAnnotations[i].top(annotationThicknessX);
+		annotationThicknessX += this.state.xAnnotations[i].height();
+	}
+	var annotationThicknessY = 0;
+	for (var i in this.state.yAnnotations) {
+		this.state.yAnnotations[i].left(annotationThicknessY);
+		annotationThicknessY += this.state.yAnnotations[i].width();
+	}
+
 	// Inside plotting area:
 	this.state.layout.inner = {
+		left: paddingLeft + annotationThicknessY,
+		top: paddingTop,
+		width: this.state.layout.whole.width - annotationThicknessY - paddingLeft - paddingRight,
+		height: this.state.layout.whole.height - annotationThicknessX - paddingBottom - paddingTop,
+	}
+
+	this.state.layout.annotations = {
+		x: { 
+			top: (this.state.layout.inner.top + this.state.layout.inner.height),
+			left: this.state.layout.inner.left,
+		},
+		y: { 
+			top: (this.state.layout.inner.top),
+			left: this.state.layout.inner.left - annotationThicknessY,
+		}
+	}
+
+	this.state.layout.outer = {
 		left: paddingLeft,
 		top: paddingTop,
-		width: this.state.layout.whole.width - paddingLeft - paddingRight,
-		height: this.state.layout.whole.height - paddingBottom - paddingTop,
+		width: this.state.layout.inner.width + annotationThicknessY,
+		height: this.state.layout.inner.height + annotationThicknessX,
 	}
 
 	this.svg
@@ -175,8 +246,6 @@ DotPlot.prototype.drawGrid = function() {
 	const boundariesX = this.scales.x.getBoundaries();
 	const boundariesY = this.scales.y.getBoundaries();
 
-
-
 	// //////////////////////    Grid by canvas    //////////////////////
 	// c.strokeStyle = "#AAAAAA";
 	// c.fillStyle = "#000000";
@@ -200,9 +269,6 @@ DotPlot.prototype.drawGrid = function() {
 	// 	c.lineTo(this.state.layout.inner.width, boundariesY[i].start);
 	// }
 	// c.stroke();	
-
-
-
 
 	//////////////////////    Grid by svg    //////////////////////
 
@@ -240,8 +306,6 @@ DotPlot.prototype.drawGrid = function() {
 
 	//////////////////////    Labels by svg    //////////////////////
 
-	// c.translate((boundariesX[i].start+boundariesX[i].end)/2,this.state.layout.inner.height + 20);
-
 	var xLabels = this.svg.select("g.innerPlot")
 		.selectAll("g.xLabels").data(boundariesX);
 
@@ -251,12 +315,11 @@ DotPlot.prototype.drawGrid = function() {
 	newXLabels.append("text")
 		.style("text-anchor","end")
 		.style("font-size", 10)
-		.text("hello")
 		.attr("transform", "rotate(-45)")
 
-	var innerHeight = this.state.layout.inner.height;
+	var labelHeight = this.state.layout.outer.height + 20;
 	xLabels = xLabels.merge(newXLabels)
-		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + (innerHeight + 20) + ")"})
+		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 	
 	xLabels.select("text").datum(function(d) {return d})
 			.text(function(d) {return d.name});
@@ -264,6 +327,7 @@ DotPlot.prototype.drawGrid = function() {
 	xLabels.exit().remove();
 
 
+	var inner = this.state.layout.inner;
 
 	var yLabels = this.svg.select("g.innerPlot")
 		.selectAll("text.yLabels").data(boundariesY);
@@ -274,8 +338,8 @@ DotPlot.prototype.drawGrid = function() {
 		.style("font-size", 10);
 
 	yLabels.merge(newYLabels)
-		.attr("x", -10)
-		.attr("y", function(d) {return (d.start+d.end)/2})
+		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
+		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(function(d) {return d.name});
 
 	yLabels.exit().remove();
@@ -322,6 +386,65 @@ function validateConfig(config) {
 			console.error(key, "should be of type:", requiredTypes[key], "but is instead of type:", typeof(config[key]));
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////      Track       ////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var Track = function(config) {
+	this.element = config.element;
+	
+	this.element.append("rect")
+		.attr("class","trackBackground");
+
+	this.state = {left: 0, top: 0, height: 30, width: 30};
+
+	this.draw();
+}
+
+Track.prototype.top = function(newTop) {
+	if (newTop === undefined) {
+		return this.state.top;
+	} else {
+		this.state.top = newTop;
+	}
+}
+
+Track.prototype.left = function(newLeft) {
+	if (newLeft === undefined) {
+		return this.state.left;
+	} else {
+		this.state.left = newLeft;
+	}
+}
+
+Track.prototype.height = function(newHeight) {
+	if (newHeight === undefined) {
+		return this.state.height;
+	} else {
+		this.state.height = newHeight;
+	}
+}
+
+Track.prototype.width = function(newWidth) {
+	if (newWidth === undefined) {
+		return this.state.height;
+	} else {
+		this.state.width = newWidth;
+	}
+}
+
+Track.prototype.draw = function() {
+	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
+
+	this.element.select("rect.trackBackground")
+		.style("fill","lightblue")
+		.style("stroke","blue")
+		.attr("width", this.state.width)
+		.attr("height", this.state.height);
 }
 
 
