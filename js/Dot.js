@@ -127,7 +127,6 @@ DotPlot.prototype.drawAnnotationTracks = function() {
 		this.state.yAnnotations[i].height(this.state.layout.inner.height);
 		this.state.yAnnotations[i].draw();
 	}
-	console.log(this.state.yAnnotations);
 }
 
 DotPlot.prototype.drawLayout = function() {
@@ -461,10 +460,10 @@ var DotApp = function(element, config) {
 	this.element = element;
 
 	this.plot_element = this.element.append("div");
-	this.dataLoader = config.dataLoader;
+	// this.dataLoader = config.dataLoader;
 
 	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width});	
-	this.dataLoader(this.setData.bind(this));
+	// this.dataLoader(this.setData.bind(this));
 }
 
 
