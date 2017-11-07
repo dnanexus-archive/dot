@@ -16,7 +16,7 @@ var DotPlot = function(element, config) {
 	this.state = {
 		layout: {
 			whole: {height: config.height, width: config.width},
-			inner: {height: null, width: null},
+			inner: {height: null, width: null, left: null, top: null},
 
 		},
 		all_refs: null,
@@ -39,10 +39,12 @@ var DotPlot = function(element, config) {
 	this.svg.append("rect").attr("class","innerBorder");
 	this.svg.append("text").attr("class","xTitle");
 	this.svg.append("g").attr("class","yTitle").append("text").attr("class","yTitle");
-	this.svg.append("g").attr("class","innerPlot");
 
-	this.svg.xAnnotations = this.svg.append("g");
-	this.svg.yAnnotations = this.svg.append("g");
+	this.svg.append("g").attr("class","innerPlot");
+	this.svg.append("g").attr("class","brush");
+
+	this.xAnnotations = this.svg.append("g");
+	this.yAnnotations = this.svg.append("g");
 
 }
 
@@ -53,14 +55,14 @@ DotPlot.prototype.setData = function(data) {
 	this.state.all_refs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
 	this.state.all_queries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
 
-	this.selectRefs([0,1]); // testing chromosome selection
+	this.selectRefs();
 	this.selectQueries();
 
 	// Store data indexed by chromosome:
 	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), data);
 
 	// scales
-	this.scales = {};
+	this.scales = {x: null, y: null, zoom: {area: null, x: null, y: null}};
 	this.updateScales();
 
 
@@ -84,6 +86,9 @@ DotPlot.prototype.setData = function(data) {
 DotPlot.prototype.updateScales = function() {
 	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
 	this.scales.y = new MultiSegmentScale({data: this.state.selected_queries, key_name: 0, length_name: 1});
+
+	this.scales.zoom.x = d3.scaleLinear();
+	this.scales.zoom.y = d3.scaleLinear();
 }
 
 DotPlot.prototype.selectRefs = function(refIndices) {
@@ -105,18 +110,18 @@ DotPlot.prototype.selectQueries = function(queryIndices) {
 
 DotPlot.prototype.addAnnotationTrack = function(side, data) {
 	if (side == "x") {
-		this.state.xAnnotations.push(new Track({side: side, element: this.svg.xAnnotations.append("g"), data: data}));
+		this.state.xAnnotations.push(new Track({side: side, element: this.xAnnotations.append("g"), data: data}));
 	} else if (side == "y") {
-		this.state.yAnnotations.push(new Track({side: side, element: this.svg.yAnnotations.append("g"), data: data}));
+		this.state.yAnnotations.push(new Track({side: side, element: this.yAnnotations.append("g"), data: data}));
 	} else {
 		throw("in addAnnotationTrack, side must by 'x' or 'y'");
 	}
 }
 
 DotPlot.prototype.drawAnnotationTracks = function() {
-	this.svg.xAnnotations
+	this.xAnnotations
 		.attr("transform","translate(" + this.state.layout.annotations.x.left + "," + this.state.layout.annotations.x.top + ")");
-	this.svg.yAnnotations
+	this.yAnnotations
 		.attr("transform","translate(" + this.state.layout.annotations.y.left + "," + this.state.layout.annotations.y.top + ")");
 
 	for (var i in this.state.xAnnotations) {
@@ -181,6 +186,55 @@ DotPlot.prototype.drawLayout = function() {
 	this.svg.select("g.innerPlot")
 		.attr("transform", "translate(" + this.state.layout.inner.left + "," + this.state.layout.inner.top + ")");
 
+	this.svg.select("g.brush")
+		.attr("transform", "translate(" + this.state.layout.inner.left + "," + this.state.layout.inner.top + ")");
+
+
+	// Intialize brush to zoom functionality
+	var plot = this;
+	var brush = d3.brush()
+		.extent([[0, 0], [plot.state.layout.inner.width, plot.state.layout.inner.height]])
+		.on("end", brushended);
+	
+	var brushArea = this.svg.select("g.brush").call(brush);
+	
+	var x = plot.scales.zoom.x;
+	var y = plot.scales.zoom.y;
+
+	
+
+	function setZoom(s) {
+		x.domain([s[0][0], s[1][0]].map(x.invert, x));
+		y.domain([s[1][1], s[0][1]].map(y.invert, y));
+
+		plot.drawAlignments();
+		brushArea.call(brush.move, null);
+	}
+
+	var idleTimeout, idleDelay = 350;
+
+	function idled() {
+		idleTimeout = null;
+	}
+
+
+	function brushended() {
+		var s = d3.event.selection;
+		if (s !== null) {
+			setZoom(s);
+		} else {
+			// check for double-click
+			if (!idleTimeout) {
+				return idleTimeout = setTimeout(idled, idleDelay);
+			}
+			// zoom out
+			var s = plot.scales.zoom.area;
+			x.domain([s[0][0], s[1][0]]);
+			y.domain([s[1][1], s[0][1]]);
+			plot.drawAlignments();
+		}
+	}
+
 	this.canvas
 		.style("top", this.state.layout.inner.top + "px")
 		.style("left", this.state.layout.inner.left + "px")
@@ -191,8 +245,13 @@ DotPlot.prototype.drawLayout = function() {
 	//////////////////////////////////////    Set up scales for plotting    //////////////////////////////////////
 
 	// Set scales with the correct inner size, but don't use them to translate, since we will be applying a translate in the draw function itself
-	this.scales.x.range([0, this.state.layout.inner.width]);
-	this.scales.y.range([this.state.layout.inner.height, 0]);
+	var xRange = [0, this.state.layout.inner.width];
+	var yRange = [this.state.layout.inner.height, 0];
+	this.scales.x.range(xRange);
+	this.scales.y.range(yRange);
+	this.scales.zoom.area = [[xRange[0], yRange[1]], [xRange[1], yRange[0]]];
+	this.scales.zoom.x.domain(xRange).range(xRange);
+	this.scales.zoom.y.domain(yRange).range(yRange);
 
 	var c = this.context;
 
@@ -203,16 +262,18 @@ DotPlot.prototype.drawLayout = function() {
 	// c.stroke();
 
 	////////////////////////////////////////    Borders    ////////////////////////////////////////
-	
+
 	// Inner plot border
 	this.svg.select("rect.innerBorder")
 		.attr("x", this.state.layout.inner.left)
 		.attr("y", this.state.layout.inner.top)
 		.attr("width", this.state.layout.inner.width)
 		.attr("height", this.state.layout.inner.height)
+		.style("fill","transparent")
 		.style("stroke","black");
 
 	//////////////////////////////////////    Axis titles    //////////////////////////////////////
+
 	// Ref
 	this.svg.select("text.xTitle")
 		.attr("x", this.state.layout.inner.left + this.state.layout.inner.width/2)
@@ -347,7 +408,7 @@ DotPlot.prototype.drawGrid = function() {
 
 DotPlot.prototype.drawAlignments = function() {
 	var c = this.context;
-
+	
 	/////////////////////////////////////////    Alignments    /////////////////////////////////////////
 	
 	var state = this.state;
@@ -357,17 +418,54 @@ DotPlot.prototype.drawAlignments = function() {
 	
 	// Draw lines
 	c.setTransform(1, 0, 0, 1, 0, 0);
+	c.clearRect(0, 0, this.state.layout.inner.width, this.state.layout.inner.height);
 
 	c.beginPath();
 	c.strokeStyle = "#000000";
 	
+	var zoomX = this.scales.zoom.x;
+	var zoomY = this.scales.zoom.y;
+
+	function getLine(d) {
+		return {
+			start: {
+				x: zoomX(scales.x.get(d[x], d[x + '_start'])),
+				y: zoomY(scales.y.get(d[y], d[y + '_start']))
+			},
+			end: {
+				x: zoomX(scales.x.get(d[x], d[x + '_end'])),
+				y: zoomY(scales.y.get(d[y], d[y + '_end']))
+			}
+		};
+	}
+	var area = scales.zoom.area;
+	
+	function insidePlotArea(point){
+		return ((point.x >= area[0][0] && point.x <= area[1][0]) && (point.y >= area[0][1] && point.y <= area[1][1]));
+	}
+	function bothEndsLeft(line) {
+		return (line.start.x < area[0][0] && line.end.x < area[0][0])
+	}
+	function bothEndsRight(line) {
+		return (line.start.x > area[1][0] && line.end.x > area[1][0])
+	}
+	function bothEndsAbove(line) {
+		return (line.start.y < area[0][1] && line.end.y < area[0][1])
+	}
+	function bothEndsBelow(line) {
+		return (line.start.y > area[1][1] && line.end.y > area[1][1])
+	}
+
 	R.map( function(refInfo) {
 		var ref = refInfo[0];
 		R.map( function(d) {
-			c.moveTo(scales.x.get( d[x], d[x + '_start'] ), scales.y.get( d[y], d[y + '_start'] ));
-			c.lineTo(scales.x.get( d[x], d[x + '_end']   ), scales.y.get( d[y], d[y + '_end'] ));
-		}, state.data_by_chromosome[ref])
-	}, state.selected_refs)
+			var line = getLine(d);
+			if (!(bothEndsAbove(line) || bothEndsBelow(line) || bothEndsLeft(line) || bothEndsRight(line))) {
+				c.moveTo(line.start.x, line.start.y);
+				c.lineTo(line.end.x, line.end.y);
+			}
+		}, state.data_by_chromosome[ref]);
+	}, state.selected_refs);
 
 	c.stroke();
 }
