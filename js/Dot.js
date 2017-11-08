@@ -207,7 +207,7 @@ DotPlot.prototype.drawLayout = function() {
 		x.domain([s[0][0], s[1][0]].map(x.invert, x));
 		y.domain([s[1][1], s[0][1]].map(y.invert, y));
 
-		plot.drawAlignments();
+		plot.zoomed();
 		brushArea.call(brush.move, null);
 	}
 
@@ -231,7 +231,7 @@ DotPlot.prototype.drawLayout = function() {
 			var s = plot.scales.zoom.area;
 			x.domain([s[0][0], s[1][0]]);
 			y.domain([s[1][1], s[0][1]]);
-			plot.drawAlignments();
+			plot.zoomed();
 		}
 	}
 
@@ -294,6 +294,10 @@ DotPlot.prototype.drawLayout = function() {
 			.text(this.k.y);
 }
 
+DotPlot.prototype.zoomed = function() {
+	this.drawGrid();
+	this.drawAlignments();
+}
 DotPlot.prototype.drawGrid = function() {
 
 	var c = this.context;
@@ -303,8 +307,42 @@ DotPlot.prototype.drawGrid = function() {
 	
 	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
 
-	const boundariesX = this.scales.x.getBoundaries();
-	const boundariesY = this.scales.y.getBoundaries();
+	var zoomX = this.scales.zoom.x;
+	var zoomY = this.scales.zoom.y;
+
+	var area = this.scales.zoom.area;
+
+	var inside = R.curry(function(xOrY, point) {
+		return (point >= area[0][xOrY] && point <= area[1][xOrY]);
+	});
+
+	var overlaps = R.curry(function(xOrY, d) {
+		return (!((d.start < area[0][xOrY] && d.end < area[0][xOrY]) || (d.start > area[1][xOrY] && d.end > area[1][xOrY])));
+	});
+
+	var zoomTransform = R.map(function(d) {d.start = zoomX(d.start); d.end = zoomX(d.end); return d});
+	var zoomFilter = function(xOrY) {
+		return R.filter(overlaps(xOrY));
+	}
+	var zoomSnap = function(xOrY) {
+		return R.map(function(d) {
+			if (!inside(xOrY)(d.start)) {
+				d.start = area[xOrY][xOrY];
+			}
+			if (!inside(xOrY)(d.end)) {
+				d.end = area[Number(!xOrY)][xOrY];
+			}
+			d.label = (d.start + d.end)/2;
+			return d;
+		});
+	};
+	var boundariesX = R.compose(zoomSnap(0), zoomFilter(0), zoomTransform)(this.scales.x.getBoundaries());
+	var boundariesY = R.compose(zoomSnap(1), zoomFilter(1), zoomTransform)(this.scales.y.getBoundaries());
+	
+
+	
+
+	
 
 	// //////////////////////    Grid by canvas    //////////////////////
 	// c.strokeStyle = "#AAAAAA";
@@ -371,6 +409,8 @@ DotPlot.prototype.drawGrid = function() {
 
 	var newXLabels = xLabels.enter().append("g")
 		.attr("class","xLabels")
+
+	xLabels.exit().remove();
 	
 	newXLabels.append("text")
 		.style("text-anchor","end")
@@ -379,18 +419,20 @@ DotPlot.prototype.drawGrid = function() {
 
 	var labelHeight = this.state.layout.outer.height + 20;
 	xLabels = xLabels.merge(newXLabels)
-		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
+		.attr("transform",function(d) {return "translate(" + d.label + "," + labelHeight + ")"})
 	
 	xLabels.select("text").datum(function(d) {return d})
 			.text(function(d) {return d.name});
 
-	xLabels.exit().remove();
+	
 
 
 	var inner = this.state.layout.inner;
 
 	var yLabels = this.svg.select("g.innerPlot")
 		.selectAll("text.yLabels").data(boundariesY);
+
+	yLabels.exit().remove();
 
 	var newYLabels = yLabels.enter().append("text")
 		.attr("class","yLabels")
@@ -399,10 +441,8 @@ DotPlot.prototype.drawGrid = function() {
 
 	yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
-		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
+		.attr("y", function(d) {return inner.top + d.label})
 		.text(function(d) {return d.name});
-
-	yLabels.exit().remove();
 
 }
 
@@ -439,10 +479,7 @@ DotPlot.prototype.drawAlignments = function() {
 		};
 	}
 	var area = scales.zoom.area;
-	
-	function insidePlotArea(point){
-		return ((point.x >= area[0][0] && point.x <= area[1][0]) && (point.y >= area[0][1] && point.y <= area[1][1]));
-	}
+
 	function bothEndsLeft(line) {
 		return (line.start.x < area[0][0] && line.end.x < area[0][0])
 	}
@@ -471,7 +508,7 @@ DotPlot.prototype.drawAlignments = function() {
 }
 
 function validateConfig(config) {
-	const requiredTypes = {
+	var requiredTypes = {
 		height: "number",
 		width: "number"
 	}
