@@ -459,9 +459,6 @@ DotPlot.prototype.drawAlignments = function() {
 	// Draw lines
 	c.setTransform(1, 0, 0, 1, 0, 0);
 	c.clearRect(0, 0, this.state.layout.inner.width, this.state.layout.inner.height);
-
-	c.beginPath();
-	c.strokeStyle = "#000000";
 	
 	var zoomX = this.scales.zoom.x;
 	var zoomY = this.scales.zoom.y;
@@ -493,18 +490,30 @@ DotPlot.prototype.drawAlignments = function() {
 		return (line.start.y > area[1][1] && line.end.y > area[1][1])
 	}
 
-	R.map( function(refInfo) {
-		var ref = refInfo[0];
-		R.map( function(d) {
-			var line = getLine(d);
-			if (!(bothEndsAbove(line) || bothEndsBelow(line) || bothEndsLeft(line) || bothEndsRight(line))) {
-				c.moveTo(line.start.x, line.start.y);
-				c.lineTo(line.end.x, line.end.y);
-			}
-		}, state.data_by_chromosome[ref]);
-	}, state.selected_refs);
+	var tagColors = {repetitive: "#f00", unique: "#000"};
 
-	c.stroke();
+	var drawLine = function(d) {
+		var line = getLine(d);
+		if (!(bothEndsAbove(line) || bothEndsBelow(line) || bothEndsLeft(line) || bothEndsRight(line))) {
+			c.moveTo(line.start.x, line.start.y);
+			c.lineTo(line.end.x, line.end.y);
+		}
+	};
+
+	for (var tag in tagColors) {
+		c.beginPath();
+		c.strokeStyle = tagColors[tag]
+
+		R.map(function(refInfo) {
+			var ref = refInfo[0];
+			R.compose(
+				R.map(drawLine),
+				R.filter(R.propEq("tag",tag))
+			)(state.data_by_chromosome[ref]);
+		}, state.selected_refs);
+
+		c.stroke();
+	}
 }
 
 function validateConfig(config) {

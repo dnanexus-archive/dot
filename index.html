@@ -14,6 +14,12 @@
 		h2 {
 			padding: 2vmin 2vmin 2vmin 2vmin;
 		}
+		#leftPanel {
+			padding: 10px;
+		}
+		#examples a {
+			display: block;
+		}
 	</style>
 	<script src="js/d3.v4.min.js"></script>
 	<script src="js/ramda.min.js"></script>
@@ -24,9 +30,25 @@
 <body>
 
 <h2>Dot: Interactive dot plot for genome-genome alignments</h2>
-<div id="inputPanel"></div>
-
-
+<div id="leftPanel">
+	<div id="instructions">
+		<h3>Getting started</h3>
+		<ol>
+			<li>Select an example below or enter your own alignments file URL. 
+				<ol><li>To generate the alignments file, run the scripts in Assemblytics on your MUMmer output delta file and choose the oriented_coords file:
+				<a href="https://github.com/MariaNattestad/Assemblytics_web/tree/master/bin/" target="_blank">Assemblytics pipeline</a></li></ol>
+			</li>
+			<li>Optionally add an annotations file for either the reference or the query. Annotations will be drawn on either the reference side or the query side depending on which sequence names match. </li>
+			<li>Zoom in on a region of interest by dragging a rectangle around it. Zoom back out by double-clicking.</li>
+		</ol>
+	</div>
+	<hr>
+	<h3>Examples:</h3>
+	<div id="examples"></div>
+	<hr>
+	<h3>Enter your own input URLs:</h3>
+	<div id="inputPanel"></div>
+</div>
 
 <script type='text/javascript'>
 
@@ -50,6 +72,24 @@ var _app_area =
 		.append('div')
 		.attr("id","plotting-area")
 		.style("position","relative");
+
+
+var baseURL = location.protocol + '//' + location.host + location.pathname;
+
+var examples = [
+	{
+		name: "Saccharomyces cerevisiae MHAP assembly", 
+		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
+	},
+	{
+		name: "Arabidopsis thaliana MHAP assembly", 
+		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv"
+	},
+];
+
+d3.select("#examples").selectAll("a").data(examples).enter().append("a")
+	.attr("href", function(d) {return d.url})
+	.html(function(d) {return d.name});
 
 
 
@@ -91,11 +131,6 @@ var _input_panel = new InputPanel({
 	element: _input_area,
 	spec: inputSpec,
 });
-
-
-// TESTS:
-// ?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv
-// ?alignments=https://dl.dnanex.us/F/D/g650fKffZYjFx1b2zfKVJB389V0F7fkvZpg0QpJ6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv
 
 	</script>
 </body>

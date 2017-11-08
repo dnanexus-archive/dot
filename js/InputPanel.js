@@ -15,7 +15,7 @@ var InputPanel = function(opts) {
 
 	_this.inputs = _this.element.html("").selectAll(".input").data(R.values(_this.spec)).enter().append("div").attr("class","input");
 
-	_this.inputs.append("h3").html(function(d) {return d.name});
+	_this.inputs.append("h4").html(function(d) {return d.name});
 	_this.inputs.append("label").html("From a URL:");
 	_this.inputs.append("input").property("type","text").on("keyup", setOnEnter(_this));
 
