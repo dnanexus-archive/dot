@@ -24,6 +24,7 @@ var DotPlot = function(element, config) {
 		selected_refs: null,
 		selected_queries: null,
 		data_by_chromosome: {},
+		annotationData: {},
 		xAnnotations: [],
 		yAnnotations: [],
 	};
@@ -66,21 +67,14 @@ DotPlot.prototype.setData = function(data) {
 	this.updateScales();
 
 
-	///////////////////////////////////////////////////////////////
-	// TESTING ANNOTATION TRACKS:
-	this.addAnnotationTrack("x", "data goes here");
-	this.addAnnotationTrack("x", "data goes here");
-	this.addAnnotationTrack("y", "data goes here");
-	this.addAnnotationTrack("y", "data goes here");
-	///////////////////////////////////////////////////////////////
+	this.draw();
+}
 
-
+DotPlot.prototype.draw = function() {
 	this.drawLayout();
 	this.drawGrid();
 	this.drawAlignments();
 	this.drawAnnotationTracks();
-
-
 }
 
 DotPlot.prototype.updateScales = function() {
@@ -108,6 +102,21 @@ DotPlot.prototype.selectQueries = function(queryIndices) {
 	}
 }
 
+DotPlot.prototype.addAnnotationData = function(dataset) {
+	var xSide = this.k.x;
+	var ySide = this.k.y;
+	if (this.state.annotationData[dataset.key] === undefined) {
+		this.state.annotationData[dataset.key] = dataset;
+		if (R.any(R.equals(xSide), R.keys(dataset.data[0]))) {
+			this.addAnnotationTrack("x", dataset.data);
+		} else if (R.any(R.equals(ySide), R.keys(dataset.data[0]))) {
+			this.addAnnotationTrack("y", dataset.data);
+		} else {
+			throw("annotation file does not contain ref or query in the header");
+		}
+	}
+}
+
 DotPlot.prototype.addAnnotationTrack = function(side, data) {
 	if (side == "x") {
 		this.state.xAnnotations.push(new Track({side: side, element: this.xAnnotations.append("g"), data: data}));
@@ -116,6 +125,8 @@ DotPlot.prototype.addAnnotationTrack = function(side, data) {
 	} else {
 		throw("in addAnnotationTrack, side must by 'x' or 'y'");
 	}
+
+	this.draw();
 }
 
 DotPlot.prototype.drawAnnotationTracks = function() {
@@ -298,29 +309,20 @@ DotPlot.prototype.zoomed = function() {
 	this.drawGrid();
 	this.drawAlignments();
 }
-DotPlot.prototype.drawGrid = function() {
 
-	var c = this.context;
-
-	// Translate everything relative to the inner plotting area
-	c.setTransform(1, 0, 0, 1, 0, 0);
-	
-	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
-
-	var zoomX = this.scales.zoom.x;
-	var zoomY = this.scales.zoom.y;
-
-	var area = this.scales.zoom.area;
+function zoomFilterSnap(area, zoomScales, side) {
+	var xOrY = (side == "x" ? 0 : 1);
+	var zoom = zoomScales[side];
 
 	var inside = R.curry(function(xOrY, point) {
-		return (point >= area[0][xOrY] && point <= area[1][xOrY]);
+	return (point >= area[0][xOrY] && point <= area[1][xOrY]);
 	});
 
 	var overlaps = R.curry(function(xOrY, d) {
 		return (!((d.start < area[0][xOrY] && d.end < area[0][xOrY]) || (d.start > area[1][xOrY] && d.end > area[1][xOrY])));
 	});
 
-	var zoomTransform = R.map(function(d) {d.start = zoomX(d.start); d.end = zoomX(d.end); return d});
+	var zoomTransform = R.map(function(d) {d.start = zoom(d.start); d.end = zoom(d.end); return d});
 	var zoomFilter = function(xOrY) {
 		return R.filter(overlaps(xOrY));
 	}
@@ -336,13 +338,26 @@ DotPlot.prototype.drawGrid = function() {
 			return d;
 		});
 	};
-	var boundariesX = R.compose(zoomSnap(0), zoomFilter(0), zoomTransform)(this.scales.x.getBoundaries());
-	var boundariesY = R.compose(zoomSnap(1), zoomFilter(1), zoomTransform)(this.scales.y.getBoundaries());
+	return R.compose(zoomSnap(xOrY), zoomFilter(xOrY), zoomTransform);
+}
+
+DotPlot.prototype.drawGrid = function() {
+
+	var c = this.context;
+
+	// Translate everything relative to the inner plotting area
+	c.setTransform(1, 0, 0, 1, 0, 0);
 	
+	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
+
+	var area = this.scales.zoom.area;
 
 	
 
-	
+	var boundariesX = zoomFilterSnap(area, this.scales.zoom, "x")(this.scales.x.getBoundaries());
+	var boundariesY = zoomFilterSnap(area, this.scales.zoom, "y")(this.scales.y.getBoundaries());
+
+
 
 	// //////////////////////    Grid by canvas    //////////////////////
 	// c.strokeStyle = "#AAAAAA";
@@ -500,6 +515,7 @@ DotPlot.prototype.drawAlignments = function() {
 		}
 	};
 
+
 	for (var tag in tagColors) {
 		c.beginPath();
 		c.strokeStyle = tagColors[tag]
@@ -545,7 +561,7 @@ var Track = function(config) {
 
 	this.state = {left: 0, top: 0, height: 30, width: 30};
 
-	this.draw();
+	this.data = config.data;
 }
 
 Track.prototype.top = function(newTop) {
@@ -588,6 +604,9 @@ Track.prototype.draw = function() {
 		.style("stroke","blue")
 		.attr("width", this.state.width)
 		.attr("height", this.state.height);
+
+
+	console.log(this.data);
 }
 
 
@@ -604,10 +623,8 @@ var DotApp = function(element, config) {
 	this.element = element;
 
 	this.plot_element = this.element.append("div");
-	// this.dataLoader = config.dataLoader;
 
-	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width});	
-	// this.dataLoader(this.setData.bind(this));
+	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width});
 }
 
 
@@ -615,6 +632,10 @@ DotApp.prototype.setData = function(data) {
 	this.data = data;
 
 	this.dotplot.setData(data);
+}
+
+DotApp.prototype.addAnnotationData = function(dataset) {
+	this.dotplot.addAnnotationData(dataset);
 }
 
 
