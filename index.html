@@ -35,8 +35,9 @@
 		<h3>Getting started</h3>
 		<ol>
 			<li>Select an example below or enter your own alignments file URL. 
-				<ol><li>To generate the alignments file, run the scripts in Assemblytics on your MUMmer output delta file and choose the oriented_coords file:
-				<a href="https://github.com/MariaNattestad/Assemblytics_web/tree/master/bin/" target="_blank">Assemblytics pipeline</a></li></ol>
+				To generate the alignments file, run this python script on your MUMmer output delta file:
+				<a href="https://dnanexus.github.io/dot/DotPrep.py">DotPrep.py</a>
+				This will run the Assemblytics unique anchor filtering algorithm on your delta file and create a more concise output coordinates file that will be faster to visualize. Upload the *.oriented_coords.csv file.
 			</li>
 			<li>Optionally add an annotations file for either the reference or the query. Annotations will be drawn on either the reference side or the query side depending on which sequence names match. </li>
 			<li>Zoom in on a region of interest by dragging a rectangle around it. Zoom back out by double-clicking.</li>
