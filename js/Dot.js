@@ -66,12 +66,11 @@ DotPlot.prototype.setData = function(data) {
 	this.scales = {x: null, y: null, zoom: {area: null, x: null, y: null}};
 	this.updateScales();
 
-
+	this.setUp();
 	this.draw();
 }
 
 DotPlot.prototype.draw = function() {
-	this.drawLayout();
 	this.drawGrid();
 	this.drawAlignments();
 	this.drawAnnotationTracks();
@@ -106,26 +105,47 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 	var xSide = this.k.x;
 	var ySide = this.k.y;
 	if (this.state.annotationData[dataset.key] === undefined) {
-		this.state.annotationData[dataset.key] = dataset;
+		var plottableAnnotations = null;
+		var side = null;
+
 		if (R.any(R.equals(xSide), R.keys(dataset.data[0]))) {
-			this.addAnnotationTrack("x", dataset.data);
+			side = "x";			
 		} else if (R.any(R.equals(ySide), R.keys(dataset.data[0]))) {
-			this.addAnnotationTrack("y", dataset.data);
+			side = "y";
 		} else {
 			throw("annotation file does not contain ref or query in the header");
 		}
+
+		var seqSide = this.k[side];
+		var annotSeqs = R.uniq(R.pluck(seqSide, dataset.data));
+
+		var alignmentSeqs = (seqSide === "ref" ? R.pluck(0, this.state.all_refs) : R.pluck(0, this.state.all_queries));
+
+		var sharedSeqs = R.intersection(alignmentSeqs, annotSeqs);
+		var annotSeqsNotInAlignments = R.difference(annotSeqs, alignmentSeqs);
+		if (annotSeqsNotInAlignments.length > 0) {
+			console.warn("Some annotations are on the following sequences that are not in the alignments input:", R.join(", ", annotSeqsNotInAlignments));
+		}
+
+		var seqMatchesSharedList = R.compose(R.contains(R.__, sharedSeqs), R.prop(seqSide));
+
+		plottableAnnotations = R.filter(seqMatchesSharedList, dataset.data);
+		
+		this.addAnnotationTrack(side, plottableAnnotations);
+		this.state.annotationData[dataset.key] = plottableAnnotations;
 	}
 }
 
 DotPlot.prototype.addAnnotationTrack = function(side, data) {
 	if (side == "x") {
-		this.state.xAnnotations.push(new Track({side: side, element: this.xAnnotations.append("g"), data: data}));
+		this.state.xAnnotations.push(new Track({side: side, element: this.xAnnotations.append("g"), data: data, parent: this}));
 	} else if (side == "y") {
-		this.state.yAnnotations.push(new Track({side: side, element: this.yAnnotations.append("g"), data: data}));
+		this.state.yAnnotations.push(new Track({side: side, element: this.yAnnotations.append("g"), data: data, parent: this}));
 	} else {
 		throw("in addAnnotationTrack, side must by 'x' or 'y'");
 	}
 
+	this.setUp();
 	this.draw();
 }
 
@@ -145,7 +165,8 @@ DotPlot.prototype.drawAnnotationTracks = function() {
 	}
 }
 
-DotPlot.prototype.drawLayout = function() {
+
+DotPlot.prototype.setUp = function() {
 	
 	// Set up the static parts of the view that only change when width or height change, but not when zooming or changing data
 	var paddingLeft = 120;
@@ -218,7 +239,7 @@ DotPlot.prototype.drawLayout = function() {
 		x.domain([s[0][0], s[1][0]].map(x.invert, x));
 		y.domain([s[1][1], s[0][1]].map(y.invert, y));
 
-		plot.zoomed();
+		plot.draw();
 		brushArea.call(brush.move, null);
 	}
 
@@ -242,7 +263,7 @@ DotPlot.prototype.drawLayout = function() {
 			var s = plot.scales.zoom.area;
 			x.domain([s[0][0], s[1][0]]);
 			y.domain([s[1][1], s[0][1]]);
-			plot.zoomed();
+			plot.draw();
 		}
 	}
 
@@ -305,17 +326,12 @@ DotPlot.prototype.drawLayout = function() {
 			.text(this.k.y);
 }
 
-DotPlot.prototype.zoomed = function() {
-	this.drawGrid();
-	this.drawAlignments();
-}
-
 function zoomFilterSnap(area, zoomScales, side) {
 	var xOrY = (side == "x" ? 0 : 1);
 	var zoom = zoomScales[side];
 
 	var inside = R.curry(function(xOrY, point) {
-	return (point >= area[0][xOrY] && point <= area[1][xOrY]);
+		return (point >= area[0][xOrY] && point <= area[1][xOrY]);
 	});
 
 	var overlaps = R.curry(function(xOrY, d) {
@@ -334,7 +350,6 @@ function zoomFilterSnap(area, zoomScales, side) {
 			if (!inside(xOrY)(d.end)) {
 				d.end = area[Number(!xOrY)][xOrY];
 			}
-			d.label = (d.start + d.end)/2;
 			return d;
 		});
 	};
@@ -434,13 +449,10 @@ DotPlot.prototype.drawGrid = function() {
 
 	var labelHeight = this.state.layout.outer.height + 20;
 	xLabels = xLabels.merge(newXLabels)
-		.attr("transform",function(d) {return "translate(" + d.label + "," + labelHeight + ")"})
+		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 	
 	xLabels.select("text").datum(function(d) {return d})
 			.text(function(d) {return d.name});
-
-	
-
 
 	var inner = this.state.layout.inner;
 
@@ -456,7 +468,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
-		.attr("y", function(d) {return inner.top + d.label})
+		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(function(d) {return d.name});
 
 }
@@ -559,7 +571,10 @@ var Track = function(config) {
 	this.element.append("rect")
 		.attr("class","trackBackground");
 
+	this.parent = config.parent;
+
 	this.state = {left: 0, top: 0, height: 30, width: 30};
+	this.side = config.side;
 
 	this.data = config.data;
 }
@@ -606,7 +621,40 @@ Track.prototype.draw = function() {
 		.attr("height", this.state.height);
 
 
-	console.log(this.data);
+	var xOrY = this.side;
+	var scale = this.parent.scales[xOrY];
+
+	var refOrQuery = this.parent.k[xOrY];
+	
+	function scaleAnnot(d) {
+		return {
+			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
+			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
+			name: d.name,
+			seq: d[refOrQuery],
+		};
+	}
+
+	var dataToPlot = R.map(scaleAnnot, this.data);
+
+	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
+
+	var annots = this.element.selectAll(".annot").data(dataZoomed);
+	var newAnnots = annots.enter().append("rect")
+		.attr("class","annot");
+
+	annots.exit().remove();
+
+	var rectHeight = this.height()/2;
+	var rectY = (this.height() - rectHeight)/2;
+
+	if (xOrY == "x") {
+		annots = annots.merge(newAnnots)
+			.attr("x", function(d) {return d.start})
+			.attr("width", function(d) {return d.end-d.start})
+			.attr("y", rectY)
+			.attr("height", rectHeight);
+	}
 }
 
 
