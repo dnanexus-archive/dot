@@ -1,6 +1,8 @@
 <!doctype html>
 <head>
 	<title>Dot: Interactive dot plot for genome-genome alignments</title>
+	
+	<link rel="stylesheet" href="css/bootstrap.min.css" />
 	<style>
 		body { 
 			margin: 0; 
@@ -14,11 +16,25 @@
 		h2 {
 			padding: 2vmin 2vmin 2vmin 2vmin;
 		}
-		#leftPanel {
-			padding: 10px;
+		.panel-body {
+			overflow-x: scroll;
 		}
 		#examples a {
 			display: block;
+		}
+		#wrapper {
+			display: flex;
+		}
+		#left {
+			padding: 10px;
+			width: 100px;
+		}
+		#right {
+			padding: 10px;
+			width: 500px;
+		}
+		#plotting-area {
+			position: relative;
 		}
 	</style>
 	<script src="js/d3.v4.min.js"></script>
@@ -30,25 +46,37 @@
 <body>
 
 <h2>Dot: Interactive dot plot for genome-genome alignments</h2>
-<div id="leftPanel">
-	<div id="instructions">
-		<h3>Getting started</h3>
-		<ol>
-			<li>Select an example below or enter your own alignments file URL. 
-				To generate the alignments file, run this python script on your MUMmer output delta file:
-				<a href="https://dnanexus.github.io/dot/DotPrep.py">DotPrep.py</a>
-				This will run the Assemblytics unique anchor filtering algorithm on your delta file and create a more concise output coordinates file that will be faster to visualize. Upload the *.oriented_coords.csv file.
-			</li>
-			<li>Optionally add an annotations file for either the reference or the query. Annotations will be drawn on either the reference side or the query side depending on which sequence names match. </li>
-			<li>Zoom in on a region of interest by dragging a rectangle around it. Zoom back out by double-clicking.</li>
-		</ol>
+
+<div id="wrapper">
+	<div id="left">
+		<div class="panel panel-default">
+			<div class="panel-heading">Getting started</div>
+			<div class="panel-body">
+				<ol>
+					<li>Select an example below or enter your own alignments file URL. 
+						To generate the alignments file, run this python script on your MUMmer output delta file:
+						<a href="https://dnanexus.github.io/dot/DotPrep.py">DotPrep.py</a>
+						This will run the Assemblytics unique anchor filtering algorithm on your delta file and create a more concise output coordinates file that will be faster to visualize. Upload the *.oriented_coords.csv file.
+					</li>
+					<li>Optionally add an annotation file in CSV format. The CSV file must have a header that includes the following fields: "ref,ref_start,ref_end,name" or "query,query_start,query_end,name", depending on which side the annotations belong to. </li>
+					<li>Zoom in on a region of interest by dragging a rectangle around it. Zoom back out by double-clicking.</li>
+				</ol>
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">Examples</div>
+			<div id="examples" class="panel-body"></div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">Custom inputs</div>
+			<div id="inputPanel" class="panel-body"></div>
+		</div>
 	</div>
-	<hr>
-	<h3>Examples:</h3>
-	<div id="examples"></div>
-	<hr>
-	<h3>Enter your own input URLs:</h3>
-	<div id="inputPanel"></div>
+	<div id="right">
+		<div id="plotting-area">
+
+		</div>
+	</div>
 </div>
 
 <script type='text/javascript'>
@@ -62,36 +90,39 @@ var w = window,
 
 
 
-var _map = {	width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.80,
+var _map = {	width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.90,
 				height: (w.innerHeight || e.clientHeight || g.clientHeight)*0.80,
 				x: 'ref',
 				y: 'query'
 			};
 
-var _app_area = 
-	d3.select('body')
-		.append('div')
-		.attr("id","plotting-area")
-		.style("position","relative");
+var _app_area = d3.select('#plotting-area');
 
+var panelSize = Math.min(_map.width*0.3, 300);
+var plotAreaSize = _map.width - panelSize;
+
+d3.select("#left").style("width", panelSize + "px");
+d3.select("#right").style("width", plotAreaSize + "px")
 
 var baseURL = location.protocol + '//' + location.host + location.pathname;
 
 var examples = [
 	{
+		shortName: "S. cerevisiae",
 		name: "Saccharomyces cerevisiae MHAP assembly", 
 		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
 	},
 	{
+		shortName: "A. thaliana",
 		name: "Arabidopsis thaliana MHAP assembly", 
-		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv"
+		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/0pz7JZKJz099jv7ZpvfKJGBXJKv1Q42fyJjgzbjq/TAIR10_genes.csv"
 	},
 ];
 
 d3.select("#examples").selectAll("a").data(examples).enter().append("a")
 	.attr("href", function(d) {return d.url})
-	.html(function(d) {return d.name});
-
+	.html(function(d) {return d.shortName})
+	.property("title", function(d) {return d.name});
 
 
 /* PREPARE DATA and SCALES */
@@ -104,7 +135,7 @@ var _dot;
 
 /* Set up the Dot app */
 
-_dot = new DotApp(_app_area, {height: _map.height, width: _map.width});
+_dot = new DotApp(_app_area, {height: _map.height, width: plotAreaSize});
 
 
 /* Process inputs */
@@ -121,9 +152,16 @@ function setAlignmentData(source) {
 	});
 }
 
+function setAnnotationData(source) {
+	d3.csv(source, function(error,rows) {
+		if (error) throw error;
+		_dot.addAnnotationData({key: source, data: rows});
+	});
+}
+
 var inputSpec = {
 	alignments: {name: "alignments", required: true, callback: setAlignmentData},
-	annotations: {name: "annotations", required: true},
+	annotations: {name: "annotations", required: true, callback: setAnnotationData},
 };
 
 var _input_area = d3.select("#inputPanel");
