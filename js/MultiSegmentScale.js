@@ -43,6 +43,9 @@ MultiSegmentScale.prototype.get = function(key, position) {
 		// console.log("Error, unrecognized key in MultiSegmentScale: " + String(key));
 		return undefined;
 	}
+	if (position > this.size_dict[String(key)]) {
+		return undefined;
+	}
 	return this.hidden_scale(offset + Number(position));
 
 }
@@ -64,7 +67,7 @@ MultiSegmentScale.prototype.contains = function(key,position) {
 	if (size == undefined) {
 		return false;
 	}
-	if (position > size) {
+	if (Number(position) > size) {
 		return false;
 	}
 	return true;

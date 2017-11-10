@@ -38,6 +38,7 @@
 		}
 	</style>
 	<script src="js/d3.v4.min.js"></script>
+	<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
 	<script src="js/ramda.min.js"></script>
 	<script src="js/MultiSegmentScale.js"></script>
 	<script src="js/InputPanel.js"></script>
@@ -113,9 +114,14 @@ var examples = [
 		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
 	},
 	{
-		shortName: "A. thaliana",
+		shortName: "A. thaliana (ref annotated)",
 		name: "Arabidopsis thaliana MHAP assembly", 
 		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/0pz7JZKJz099jv7ZpvfKJGBXJKv1Q42fyJjgzbjq/TAIR10_genes.csv"
+	},
+	{
+		shortName: "A. thaliana (query annotated)",
+		name: "Arabidopsis thaliana MHAP assembly", 
+		url: baseURL + "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/F3vX12Z9kXGyb6bgGZ3q7bFJgbxBbbQQP3XkffVy/fake_test_query_genes.csv"
 	},
 ];
 

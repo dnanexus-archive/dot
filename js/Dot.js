@@ -102,15 +102,13 @@ DotPlot.prototype.selectQueries = function(queryIndices) {
 }
 
 DotPlot.prototype.addAnnotationData = function(dataset) {
-	var xSide = this.k.x;
-	var ySide = this.k.y;
 	if (this.state.annotationData[dataset.key] === undefined) {
 		var plottableAnnotations = null;
 		var side = null;
 
-		if (R.any(R.equals(xSide), R.keys(dataset.data[0]))) {
+		if (R.any(R.equals(this.k.x), R.keys(dataset.data[0]))) {
 			side = "x";			
-		} else if (R.any(R.equals(ySide), R.keys(dataset.data[0]))) {
+		} else if (R.any(R.equals(this.k.y), R.keys(dataset.data[0]))) {
 			side = "y";
 		} else {
 			throw("annotation file does not contain ref or query in the header");
@@ -120,6 +118,7 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 		var annotSeqs = R.uniq(R.pluck(seqSide, dataset.data));
 
 		var alignmentSeqs = (seqSide === "ref" ? R.pluck(0, this.state.all_refs) : R.pluck(0, this.state.all_queries));
+		var tmpScale = (seqSide === "ref" ? new MultiSegmentScale({data: this.state.all_refs, key_name: 0, length_name: 1}) : new MultiSegmentScale({data: this.state.all_queries, key_name: 0, length_name: 1}));
 
 		var sharedSeqs = R.intersection(alignmentSeqs, annotSeqs);
 		var annotSeqsNotInAlignments = R.difference(annotSeqs, alignmentSeqs);
@@ -127,10 +126,12 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 			console.warn("Some annotations are on the following sequences that are not in the alignments input:", R.join(", ", annotSeqsNotInAlignments));
 		}
 
-		var seqMatchesSharedList = R.compose(R.contains(R.__, sharedSeqs), R.prop(seqSide));
+		var annotMatches = function(d) {
+			return tmpScale.contains(d[seqSide], d[seqSide+"_start"]) && tmpScale.contains(d[seqSide], d[seqSide+"_end"])
+		};
 
-		plottableAnnotations = R.filter(seqMatchesSharedList, dataset.data);
-		
+		plottableAnnotations = R.filter(annotMatches, dataset.data);
+
 		this.addAnnotationTrack(side, plottableAnnotations);
 		this.state.annotationData[dataset.key] = plottableAnnotations;
 	}
@@ -367,12 +368,8 @@ DotPlot.prototype.drawGrid = function() {
 
 	var area = this.scales.zoom.area;
 
-	
-
 	var boundariesX = zoomFilterSnap(area, this.scales.zoom, "x")(this.scales.x.getBoundaries());
 	var boundariesY = zoomFilterSnap(area, this.scales.zoom, "y")(this.scales.y.getBoundaries());
-
-
 
 	// //////////////////////    Grid by canvas    //////////////////////
 	// c.strokeStyle = "#AAAAAA";
@@ -605,7 +602,7 @@ Track.prototype.height = function(newHeight) {
 
 Track.prototype.width = function(newWidth) {
 	if (newWidth === undefined) {
-		return this.state.height;
+		return this.state.width;
 	} else {
 		this.state.width = newWidth;
 	}
@@ -614,11 +611,12 @@ Track.prototype.width = function(newWidth) {
 Track.prototype.draw = function() {
 	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
 
-	this.element.select("rect.trackBackground")
-		.style("fill","lightblue")
-		.style("stroke","blue")
-		.attr("width", this.state.width)
-		.attr("height", this.state.height);
+	// Add background or border to track
+	// this.element.select("rect.trackBackground")
+	// 	.style("fill","lightblue")
+	// 	.style("stroke","blue")
+	// 	.attr("width", this.state.width)
+	// 	.attr("height", this.state.height);
 
 
 	var xOrY = this.side;
@@ -630,30 +628,48 @@ Track.prototype.draw = function() {
 		return {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
 			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
-			name: d.name,
 			seq: d[refOrQuery],
+			hover: d.name + " (" + d[refOrQuery] + ":" + d[refOrQuery + '_start'] + "-" + d[refOrQuery + '_end'] + ")",
 		};
 	}
 
 	var dataToPlot = R.map(scaleAnnot, this.data);
-
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
 	var annots = this.element.selectAll(".annot").data(dataZoomed);
 	var newAnnots = annots.enter().append("rect")
 		.attr("class","annot");
 
+	var colorScale = d3.scaleOrdinal(d3.schemeAccent);
+
 	annots.exit().remove();
 
-	var rectHeight = this.height()/2;
-	var rectY = (this.height() - rectHeight)/2;
-
 	if (xOrY == "x") {
+		var rectHeight = this.height()/2;
+		var rectY = (this.height() - rectHeight)/2;
+
 		annots = annots.merge(newAnnots)
 			.attr("x", function(d) {return d.start})
 			.attr("width", function(d) {return d.end-d.start})
 			.attr("y", rectY)
-			.attr("height", rectHeight);
+			.attr("height", rectHeight)
+			.attr("fill",function(d) {return colorScale(d.seq)})
+			.on("click", function(d) {console.log(d.hover)});
+
+	} else if (xOrY == "y") {
+		var rectWidth = this.width()/2;
+		var rectX = (this.width() - rectWidth)/2;
+
+		annots = annots.merge(newAnnots)
+			.attr("x", rectX)
+			.attr("width", rectWidth)
+			.attr("y", function(d) {return d.end})
+			.attr("height", function(d) {return d.start-d.end})
+			.attr("fill",function(d) {return colorScale(d.seq)})
+			.on("click", function(d) {console.log(d.hover)});
+
+	} else {
+		throw("side must be x or y in Track.draw");
 	}
 }
 
