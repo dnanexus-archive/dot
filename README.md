@@ -14,4 +14,4 @@ To prepare a .delta file (nucmer output) for Dot, run this python (2.7) script f
 
 The DotPrep.py script will apply a unique anchor filtering algorithm to mark alignments as unique or repetitive. This algorithm analyzes all the alignments, and it needs to see unfiltered data to determine which alignments are repetitive, so make sure to run nucmer without any filtering options and without running delta-filter on the .delta file before passing it into DotPrep.py. 
 
-
+The output of DotPrep.py includes the *.oriented_coords.csv that should be used with Dot for visualization.
