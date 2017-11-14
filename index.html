@@ -39,6 +39,7 @@
 	</style>
 	<script src="js/d3.v4.min.js"></script>
 	<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.3.6/papaparse.min.js"></script>
 	<script src="js/ramda.min.js"></script>
 	<script src="js/MultiSegmentScale.js"></script>
 	<script src="js/InputPanel.js"></script>
@@ -149,19 +150,36 @@ _dot = new DotApp(_app_area, {height: _map.height, width: plotAreaSize});
 
 /* Process inputs */
 
-function setAlignmentData(source) {
+function setAlignmentData(source, inputType) {
 	// Type these columns as numbers:
 	var numericColumns = ["ref_length", "ref_start", "ref_end", "query_length", "query_start", "query_end", "alignment_length"];
-	d3.csv(source, function(error,rows) {
-		if (error) throw error;
-		rows.map(function(d) {
-			numericColumns.map(function(key) {return d[key] = Number(d[key]) });
+	
+	if (inputType === "url") {
+		Papa.parse(source, {
+			download: true,
+			header: true, 
+			dynamicTyping: true,
+			skipEmptyLines: true,
+			complete: function(parsed) {
+				_dot.setData(parsed.data);
+			}
 		});
-		_dot.setData(rows);
-	});
+	} else if (inputType === "File") {
+		if (source.size > 10000000) {
+			console.warn("Warning","Loading large file may take a while.");
+		}
+		Papa.parse(source, {
+			header: true, 
+			dynamicTyping: true,
+			skipEmptyLines: true,
+			complete: function(parsed) {
+				_dot.setData(parsed.data);
+			}
+		});
+	}
 }
 
-function setAnnotationData(source) {
+function setAnnotationData(source, inputType) {
 	d3.csv(source, function(error,rows) {
 		if (error) throw error;
 		_dot.addAnnotationData({key: source, data: rows});
