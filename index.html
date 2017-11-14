@@ -151,9 +151,6 @@ _dot = new DotApp(_app_area, {height: _map.height, width: plotAreaSize});
 /* Process inputs */
 
 function setAlignmentData(source, inputType) {
-	// Type these columns as numbers:
-	var numericColumns = ["ref_length", "ref_start", "ref_end", "query_length", "query_start", "query_end", "alignment_length"];
-	
 	if (inputType === "url") {
 		Papa.parse(source, {
 			download: true,
