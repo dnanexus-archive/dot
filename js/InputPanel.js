@@ -5,51 +5,80 @@ var InputPanel = function(opts) {
 
 	for (var key in this.spec) {
 		this.values[key] = {};
+		this.spec[key].id = key;
 	}
 
 	if (opts.spec == undefined || opts.element == undefined) {
 		console.error("InputPanel needs an input object with keys 'spec' and 'element'");
 	}
 
+	var singleInput = R.length(R.values(this.spec)) === 1;
+
+
 	var _this = this;
 
 	_this.inputs = _this.element.html("")
 		.selectAll(".input").data(R.values(_this.spec))
 		.enter().append("div")
-			.attr("class","input");
+			.attr("class","InputPanelItem form-group");
 
-	_this.inputs.append("h4").html(function(d) {return d.name});
-	_this.inputs.append("label").html("From a URL:");
-	_this.inputs.append("input").property("type","text").on("keyup", setOnEnter(_this))
-	_this.inputs.append("label").html("From a local file:");
-	_this.inputs.append("input").property("type","file").on("change", setLocalFile(_this));
+	_this.inputs.append("h4").html(function(d) {
+		if (d.required) {
+			return "<span class='req' title='Required input'>* </span>" + d.name;
+		} else {
+			return d.name;
+		}
+	});
+
+	
+	_this.inputs.append("label")
+		.property("for", function(d){return d.id + "_" + "url"})
+		.html("Enter a URL:");
+
+	_this.inputs.append("input")
+		.property("type","text")
+		.attr("class","form-control")
+		.attr("id", function(d){return d.id + "_" + "url"})
+		.on("keyup", setOnEnter(_this));
+	
+	_this.inputs.append("label")
+		.property("for", function(d){return d.id + "_" + "file"})
+		.html("or pick a local file:");
+
+	_this.inputs.append("input")
+		.property("type","file")
+		.attr("class","form-control-file")
+		.attr("id", function(d){return d.id + "_" + "file"})
+		.on("change", setLocalFile(_this));
+
+	_this.inputs.append("hr");
 
 	_this.readUrlParameters();
 };
 
 var setLocalFile = R.curry(function(inputPanel, d) {
-	inputPanel.set(d.name, "File", this.files[0]);
+	inputPanel.set(d.id, "File", this.files[0]);
 })
 
 var setOnEnter = R.curry(function(inputPanel, d) {
 	var keyCode = d3.event.keyCode;
 	if (keyCode === 13) {
-		inputPanel.set(d.name, "url", d3.event.target.value)
+		inputPanel.set(d.id, "url", d3.event.target.value)
 	}
 });
 
 InputPanel.prototype.updateUI= function() {
 	var _this = this;
 	_this.inputs.selectAll("input[type=text]")
-		.filter(function(d) {return _this.values[d.name].inputType === "url";})
-			.property("value", function(d) {return _this.values[d.name].value});
+		.filter(function(d) {return _this.values[d.id].inputType === "url";})
+			.property("value", function(d) {return _this.values[d.id].value});
 
 	_this.inputs.selectAll("input[type=text]")
-		.filter(function(d) {return _this.values[d.name].inputType === "File";})
+		.filter(function(d) {return _this.values[d.id].inputType === "File";})
 			.property("value", "");
 	
 	_this.inputs.selectAll("input[type=file]")
-		.filter(function(d) {return _this.values[d.name].inputType === "url";})
+		.filter(function(d) {return _this.values[d.id].inputType === "url";})
 		.property("value", "");
 }
 
@@ -66,15 +95,12 @@ InputPanel.prototype.readUrlParameters = function() {
 			console.warn("Unrecognized URL parameter:", key);
 		}
 	}
-
-	// this.updateUI();
-
 };
 
 InputPanel.prototype.set = function(variable, inputType, value) {
 	this.values[variable] = {value: value, inputType: inputType};
 	if (typeof(this.spec[variable].callback) === "function") {
-		this.spec[variable].callback(value, inputType);
+		this.spec[variable].callback(value, inputType, variable);
 	}
 
 	console.log("set", variable, "as", inputType, "with value:", value);

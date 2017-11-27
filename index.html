@@ -2,59 +2,47 @@
 <head>
 	<title>Dot: Interactive dot plot for genome-genome alignments</title>
 	
-	<link rel="stylesheet" href="css/bootstrap.min.css" />
-	<style>
-		body { 
-			margin: 0; 
-			font-family: Arial;
-		}
-		svg, canvas {
-			position: absolute;
-			top: 0;
-			left: 0;
-		}
-		h2 {
-			padding: 2vmin 2vmin 2vmin 2vmin;
-		}
-		.panel-body {
-			overflow-x: scroll;
-		}
-		#examples a {
-			display: block;
-		}
-		#wrapper {
-			display: flex;
-		}
-		#left {
-			padding: 10px;
-			width: 100px;
-		}
-		#right {
-			padding: 10px;
-			width: 500px;
-		}
-		#plotting-area {
-			position: relative;
-		}
-	</style>
-	<script src="js/d3.v4.min.js"></script>
-	<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.3.6/papaparse.min.js"></script>
-	<script src="js/ramda.min.js"></script>
-	<script src="js/MultiSegmentScale.js"></script>
-	<script src="js/InputPanel.js"></script>
-	<script src="js/Dot.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+	<link rel="stylesheet" href="css/VisToolTemplate.css" />
 </head>
 <body>
 
-<h2>Dot: Interactive dot plot for genome-genome alignments</h2>
+	<nav class="navbar navbar-inverse">
+	  <div class="container-fluid">
+	    <div class="navbar-header">
+	      <a class="navbar-brand" href="javascript:void(0)" onclick="changePage('#first');">Dot</a>
+	    </div>
+	    <ul class="nav navbar-nav">
+	      <li class="page_tab" id="main_tab"><a href="javascript:void(0)" onclick="changePage('#main');">Visualization</a></li>
+	      <li class="page_tab" id="tutorial_tab"><a href="javascript:void(0)" onclick="changePage('#tutorial');">Tutorial</a></li>
+	      <li class="page_tab" id="about_tab"><a href="javascript:void(0)" onclick="changePage('#about');">About</a></li>
+	    </ul>
+	  </div>
+	</nav>
 
-<div id="wrapper">
-	<div id="left">
-		<div class="panel panel-default">
-			<div class="panel-heading">Examples</div>
-			<div id="examples" class="panel-body"></div>
+
+	<div id="messagesContainer"></div>
+
+	<div class="page" id="first">
+
+		<div class="center">
+
+			<h1>Add some data</h1>
+			<!-- Special InputPanel class defined in the javascript code will fill out this div: -->
+			<div id="inputPanel"></div>
+
+
+			<h2>Or try an example:</h2>
+			<!-- Examples defined in the javascript code will fill out this div: -->
+			<div id="examples"></div>
 		</div>
+
+	</div>
+
+	<div class="page" id="tutorial">
+		<h2>Tutorial</h2>
+
+		<!-- Example tutorial page -->
 		<div class="panel panel-default">
 		<div class="panel-heading">Getting started</div>
 			<div class="panel-body">
@@ -65,135 +53,93 @@
 				</ol>
 			</div>
 		</div>
-		<div class="panel panel-default">
-			<div class="panel-heading">Custom inputs</div>
-			<div id="inputPanel" class="panel-body"></div>
-		</div>
+	</div>
+
+	<div class="page" id="about">
+		<h2>About</h2>
+
+		<!-- Example about page -->
 		<div class="panel panel-default">
 			<div class="panel-heading">Information</div>
 			<div class="panel-body">
 				Dot is open source at <a href="https://github.com/dnanexus/dot">https://github.com/dnanexus/dot</a>
 			</div>
 		</div>
+
 	</div>
-	<div id="right">
+
+	<!-- Want to add more pages? Just use the tutorial and about pages as templates. You will need another page_tab in the navigation bar and another page here -->
+
+
+	<div class="page" id="main">
 		<div id="plotting-area">
 
 		</div>
 	</div>
-	
-</div>
-
-<script type='text/javascript'>
-
-/* SET UP ENV */
-
-var w = window,
-	d = document,
-	e = d.documentElement,
-	g = d.getElementsByTagName('body')[0];
 
 
+	<!-- JavaScript files -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.11.0/d3.min.js"></script>
+	<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.3.6/papaparse.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/ramda/0.25.0/ramda.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
-var _map = {	width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.90,
-				height: (w.innerHeight || e.clientHeight || g.clientHeight)*0.80,
-				x: 'ref',
-				y: 'query'
-			};
+	<!-- Takes care of requesting the right inputs from the user -->
+	<script src="js/InputPanel.js"></script>
 
-var _app_area = d3.select('#plotting-area');
+	<!-- Load Dot -->
+	<script src="js/MultiSegmentScale.js"></script>
+	<script src="js/Dot.js"></script>
 
-var panelSize = Math.min(_map.width*0.3, 300);
-var plotAreaSize = _map.width - panelSize;
+	<!-- app.js holds your visualization. Edit app.js to change the visualization -->
+	<script src="app.js"></script> 
 
-d3.select("#left").style("width", panelSize + "px");
-d3.select("#right").style("width", plotAreaSize + "px")
-
-var baseURL = location.protocol + '//' + location.host + location.pathname;
-
-var examples = [
-	{
-		shortName: "S. cerevisiae",
-		name: "Saccharomyces cerevisiae MHAP assembly", 
-		url: baseURL + "?alignments=test_files/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
-	},
-	{
-		shortName: "A. thaliana (ref annotated)",
-		name: "Arabidopsis thaliana MHAP assembly", 
-		url: baseURL + "?alignments=test_files/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=test_files/TAIR10_genes.csv"
-	},
-	{
-		shortName: "A. thaliana (query annotated)",
-		name: "Arabidopsis thaliana MHAP assembly", 
-		url: baseURL + "?alignments=test_files/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=test_files/fake_test_query_genes.csv"
-	},
-];
-
-d3.select("#examples").selectAll("a").data(examples).enter().append("a")
-	.attr("href", function(d) {return d.url})
-	.html(function(d) {return d.shortName})
-	.property("title", function(d) {return d.name});
+	<!-- VisToolTemplate.js sets up the looks and basic functionality of the site. Edit VisToolTemplate.js to control what inputs your app should take from the user or how it should parse the data -->
+	<script src="js/VisToolTemplate.js"></script>
 
 
-/* PREPARE DATA and SCALES */
+	<script type="text/javascript">
 
-var _scales = {x: null, y: null};
+		// Define the inputs needed for this app
+		var inputSpec = {
+			alignments: {name: "Alignments", required: true, callback: readTSVorCSV},
+			annotations: {name: "Annotations", required: false, callback: readTSVorCSV},
+		};
+		// the keys input and someOtherInput become the names for those parameters you can pass in through the URL (see examples' urlSuffix), and how you refer to each file within the visualization code in app.js
+
+		// Note: readTSVorCSV is a function defined in VisToolTemplate.js, which will be called when a file is chosen. readTSVorCSV will parse the data, read it into memory, and call other functions that launch the visualization in app.js
+
+		setInputSpec(inputSpec);
 
 
-var _dot;
 
+		// Define some examples
+		var examples = [
+			{
+				name: "S. cerevisiae",
+				hover: "Saccharomyces cerevisiae MHAP assembly", 
+				urlSuffix: "?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
+			},
+			{
+				name: "A. thaliana (ref annotated)",
+				hover: "Arabidopsis thaliana MHAP assembly", 
+				urlSuffix: "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/0pz7JZKJz099jv7ZpvfKJGBXJKv1Q42fyJjgzbjq/TAIR10_genes.csv"
+			},
+			{
+				name: "A. thaliana (query annotated)",
+				hover: "Arabidopsis thaliana MHAP assembly", 
+				urlSuffix: "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/F3vX12Z9kXGyb6bgGZ3q7bFJgbxBbbQQP3XkffVy/fake_test_query_genes.csv"
+			},
+		];
 
-/* Set up the Dot app */
+		setExamples(examples);
 
-_dot = new DotApp(_app_area, {height: _map.height, width: plotAreaSize});
+		// If you need to communicate with the user, you can send them a message like this:
+		showMessage("Welcome to Dot, see the Tutorial page for information on getting started.", "info");
+		// Use "success", "warning", "danger", or "info" to make the alert box color match the sentiment of your message
 
-
-/* Process inputs */
-
-function setAlignmentData(source, inputType) {
-	if (inputType === "url") {
-		Papa.parse(source, {
-			download: true,
-			header: true, 
-			dynamicTyping: true,
-			skipEmptyLines: true,
-			complete: function(parsed) {
-				_dot.setData(parsed.data);
-			}
-		});
-	} else if (inputType === "File") {
-		if (source.size > 10000000) {
-			console.warn("Warning","Loading large file may take a while.");
-		}
-		Papa.parse(source, {
-			header: true, 
-			dynamicTyping: true,
-			skipEmptyLines: true,
-			complete: function(parsed) {
-				_dot.setData(parsed.data);
-			}
-		});
-	}
-}
-
-function setAnnotationData(source, inputType) {
-	d3.csv(source, function(error,rows) {
-		if (error) throw error;
-		_dot.addAnnotationData({key: source, data: rows});
-	});
-}
-
-var inputSpec = {
-	alignments: {name: "alignments", required: true, callback: setAlignmentData},
-	annotations: {name: "annotations", required: true, callback: setAnnotationData},
-};
-
-var _input_area = d3.select("#inputPanel");
-
-var _input_panel = new InputPanel({
-	element: _input_area,
-	spec: inputSpec,
-});
 
 	</script>
 </body>

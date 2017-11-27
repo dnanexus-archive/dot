@@ -33,10 +33,21 @@ var DotPlot = function(element, config) {
 
 
 	// Set up permanent DOM elements
-	this.canvas = this.element.append('canvas');
+	this.element
+		.style("position","relative");
+
+	this.canvas = this.element.append('canvas')
+		.style("position", "absolute")
+		.style("top", 0)
+		.style("left", 0);
+		
 	this.context = this.canvas
 			.node().getContext('2d');
-	this.svg = this.element.append("svg");
+	this.svg = this.element.append("svg")
+		.style("position", "absolute")
+		.style("top", 0)
+		.style("left", 0);
+
 	this.svg.append("rect").attr("class","innerBorder");
 	this.svg.append("text").attr("class","xTitle");
 	this.svg.append("g").attr("class","yTitle").append("text").attr("class","yTitle");

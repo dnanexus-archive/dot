@@ -1,0 +1,34 @@
+body { 
+	margin: 0;
+	font-family: Arial;
+}
+h1, h2 {
+	text-align: center;
+}
+.center {
+	width: 50%;
+	margin: 0 auto;
+}
+.panel-body {
+	overflow-x: scroll;
+}
+#examples a {
+	display: block;
+	text-align: center;
+	font-size 
+}
+.page {
+	display: none;
+}
+#first {
+	display: block;
+}
+.InputPanelItem label {
+	display: inline-block;
+}
+#main_tab {
+	display: none;
+}
+.req {
+	color: #f00;
+}
