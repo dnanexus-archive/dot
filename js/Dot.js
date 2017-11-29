@@ -72,15 +72,15 @@ DotPlot.prototype.setData = function(data) {
 }
 
 DotPlot.prototype.finishSetup = function(data) {
-	this.selectRefs();
-	this.selectQueries();
+	this.state.selected_refs = this.state.all_refs;
+	this.state.selected_queries = this.state.all_queries;
 
 	// Store data indexed by chromosome:
 	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), this.data);
 
 	// scales
 	this.scales = {x: null, y: null, zoom: {area: null, x: null, y: null}};
-	this.updateScales();
+	this.configureScales();
 
 	this.setUp();
 	this.draw();
@@ -157,29 +157,61 @@ DotPlot.prototype.draw = function() {
 	this.drawAnnotationTracks();
 }
 
-DotPlot.prototype.updateScales = function() {
-	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
-	this.scales.y = new MultiSegmentScale({data: this.state.selected_queries, key_name: 0, length_name: 1});
+DotPlot.prototype.configureScales = function() {
+	this.updateScales();
 
 	this.scales.zoom.x = d3.scaleLinear();
 	this.scales.zoom.y = d3.scaleLinear();
 }
 
-DotPlot.prototype.selectRefs = function(refIndices) {
-	var state = this.state;
-	if (refIndices === undefined) {
-		state.selected_refs = state.all_refs;
-	} else {
-		state.selected_refs = R.map( function(i) {return state.all_refs[i]}, refIndices);
-	}
+DotPlot.prototype.updateScales = function() {
+	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
+	this.scales.y = new MultiSegmentScale({data: this.state.selected_queries, key_name: 0, length_name: 1});
+
+	this.scales.x.range([0, this.state.layout.inner.width]);
+	this.scales.y.range([this.state.layout.inner.height, 0]);
 }
-DotPlot.prototype.selectQueries = function(queryIndices) {
+
+DotPlot.prototype.seqSelectionDidChange = function() {
+	
+	this.resetZoom();
+	this.updateScales();
+	this.draw();
+}
+
+DotPlot.prototype.resetRefQuerySelections = function(refNames) {
+	this.state.selected_refs = this.state.all_refs;
+	this.state.selected_queries = this.state.all_queries;
+
+	this.seqSelectionDidChange();
+	
+}
+DotPlot.prototype.selectRefs = function(refNames) {
 	var state = this.state;
-	if (queryIndices === undefined) {
-		state.selected_queries = state.all_queries;
-	} else {
-		state.selected_queries = R.map( function(i) {return state.all_queries[i]}, queryIndices);
-	}
+
+	state.selected_refs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.all_refs);
+
+	var matchNames = R.filter(function(d) {return R.contains(d.ref, refNames)});
+	var getQueries = R.compose(R.uniq, R.flatten, R.pluck("matching_queries"), matchNames);
+	var queryNames = getQueries(state.refIndex);
+
+	state.selected_queries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.all_queries);
+
+	this.seqSelectionDidChange();
+}
+
+DotPlot.prototype.selectQueries = function(queryNames) {
+	var state = this.state;
+
+	state.selected_queries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.all_queries);
+
+	var matchNames = R.filter(function(d) {return R.contains(d.query, queryNames)});
+	var getRefs = R.compose(R.uniq, R.flatten, R.pluck("matching_refs"), matchNames);
+	var refNames = getRefs(state.queryIndex);
+
+	state.selected_refs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.all_refs);
+
+	this.seqSelectionDidChange();
 }
 
 DotPlot.prototype.addAnnotationData = function(dataset) {
@@ -247,9 +279,15 @@ DotPlot.prototype.drawAnnotationTracks = function() {
 	}
 }
 
+DotPlot.prototype.resetZoom = function() {
+	this.state.isZoomed = false;
+	var s = this.scales.zoom.area;
+	this.scales.zoom.x.domain([s[0][0], s[1][0]]);
+	this.scales.zoom.y.domain([s[1][1], s[0][1]]);
+	this.draw();
+}
 
-DotPlot.prototype.setUp = function() {
-	
+DotPlot.prototype.layoutPlot = function() {
 	// Set up the static parts of the view that only change when width or height change, but not when zooming or changing data
 	var paddingLeft = 120;
 	var paddingBottom = 100;
@@ -303,7 +341,14 @@ DotPlot.prototype.setUp = function() {
 	this.svg.select("g.brush")
 		.attr("transform", "translate(" + this.state.layout.inner.left + "," + this.state.layout.inner.top + ")");
 
+	this.canvas
+		.style("top", this.state.layout.inner.top + "px")
+		.style("left", this.state.layout.inner.left + "px")
+		.attr('width', this.state.layout.inner.width)
+		.attr('height', this.state.layout.inner.height);
+}
 
+DotPlot.prototype.initializeZoom = function() {
 	// Intialize brush to zoom functionality
 	var plot = this;
 	var brush = d3.brush()
@@ -331,29 +376,29 @@ DotPlot.prototype.setUp = function() {
 		idleTimeout = null;
 	}
 
+	plot.state.isZoomed = true;
 
 	function brushended() {
 		var s = d3.event.selection;
 		if (s !== null) {
 			setZoom(s);
+			plot.state.isZoomed = true;
 		} else {
 			// check for double-click
 			if (!idleTimeout) {
 				return idleTimeout = setTimeout(idled, idleDelay);
 			}
 			// zoom out
-			var s = plot.scales.zoom.area;
-			x.domain([s[0][0], s[1][0]]);
-			y.domain([s[1][1], s[0][1]]);
-			plot.draw();
+			if (plot.state.isZoomed) {
+				plot.resetZoom();
+				plot.state.isZoomed = false;
+			} else {
+				plot.resetRefQuerySelections();
+			}
+			
 		}
 	}
 
-	this.canvas
-		.style("top", this.state.layout.inner.top + "px")
-		.style("left", this.state.layout.inner.left + "px")
-		.attr('width', this.state.layout.inner.width)
-		.attr('height', this.state.layout.inner.height);
 
 
 	//////////////////////////////////////    Set up scales for plotting    //////////////////////////////////////
@@ -367,6 +412,17 @@ DotPlot.prototype.setUp = function() {
 	this.scales.zoom.x.domain(xRange).range(xRange);
 	this.scales.zoom.y.domain(yRange).range(yRange);
 
+
+}
+
+DotPlot.prototype.setUp = function() {
+	
+	this.layoutPlot();
+
+	
+	this.initializeZoom()
+
+	
 	var c = this.context;
 
 	// Draw outside border rectangle
@@ -452,6 +508,10 @@ DotPlot.prototype.drawGrid = function() {
 	var boundariesX = zoomFilterSnap(area, this.scales.zoom, "x")(this.scales.x.getBoundaries());
 	var boundariesY = zoomFilterSnap(area, this.scales.zoom, "y")(this.scales.y.getBoundaries());
 
+
+	// console.log(boundariesX);
+
+
 	// //////////////////////    Grid by canvas    //////////////////////
 	// c.strokeStyle = "#AAAAAA";
 	// c.fillStyle = "#000000";
@@ -511,6 +571,15 @@ DotPlot.prototype.drawGrid = function() {
 
 
 	//////////////////////    Labels by svg    //////////////////////
+	var _this = this;
+
+	function setRef(d, i) {
+		_this.selectRefs([d.name]);
+	}
+
+	function setQuery(d, i) {
+		_this.selectQueries([d.name]);
+	}
 
 	var xLabels = this.svg.select("g.innerPlot")
 		.selectAll("g.xLabels").data(boundariesX);
@@ -530,7 +599,9 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 	
 	xLabels.select("text").datum(function(d) {return d})
-			.text(function(d) {return d.name});
+			.text(function(d) {return d.name})
+			.style("cursor", "pointer")
+			.on("click", setRef);
 
 	var inner = this.state.layout.inner;
 
@@ -547,7 +618,9 @@ DotPlot.prototype.drawGrid = function() {
 	yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
-		.text(function(d) {return d.name});
+		.text(function(d) {return d.name})
+		.style("cursor", "pointer")
+		.on("click", setQuery);
 
 }
 
@@ -604,6 +677,12 @@ DotPlot.prototype.drawAlignments = function() {
 			c.lineTo(line.end.x, line.end.y);
 		}
 	};
+
+	// var trace = R.curry(function(tag, x) {
+	// 	console.log(tag, x);
+	// 	return x;
+	// });
+
 
 
 	for (var tag in tagColors) {
