@@ -67,11 +67,16 @@ DotPlot.prototype.setData = function(data) {
 	this.state.all_refs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
 	this.state.all_queries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
 
+	this.finishSetup();
+	
+}
+
+DotPlot.prototype.finishSetup = function(data) {
 	this.selectRefs();
 	this.selectQueries();
 
 	// Store data indexed by chromosome:
-	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), data);
+	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), this.data);
 
 	// scales
 	this.scales = {x: null, y: null, zoom: {area: null, x: null, y: null}};
@@ -79,6 +84,71 @@ DotPlot.prototype.setData = function(data) {
 
 	this.setUp();
 	this.draw();
+}
+
+DotPlot.prototype.setCoords = function(coords, index) {
+	this.coords = coords;
+
+	this.parseIndex(index);
+
+	this.state.all_refs = R.map(R.props(["ref","ref_length"]), this.state.refIndex);
+	this.state.all_queries = R.map(R.props(["query","query_length"]), this.state.queryIndex)
+
+	this.finishSetup();
+}
+
+DotPlot.prototype.parseIndex = function(index) {
+
+	var lines = index.split("\n");
+	
+	var refCSV = "";
+	var queryCSV = "";
+	var overviewCSV = "";
+	var reading = "";
+
+	for (var i in lines) {
+		if (lines[i][0] === "#") {
+			if (lines[i] === "#ref") {
+				reading = "ref";
+			} else if (lines[i] === "#query") {
+				reading = "query";
+			} else if (lines[i] === "#overview") {
+				reading = "overview";
+			} else {
+				console.log("Unrecognized # line in index file:", lines[i]);
+			}
+		} else {
+			if (reading == "ref") {
+				refCSV += lines[i] + "\n";
+			} else if (reading == "query") {
+				queryCSV += lines[i] + "\n";
+			} else if (reading == "overview") {
+				overviewCSV += lines[i] + "\n";
+			} else {
+				console.log("Unrecognized lines in index file:");
+				console.log(lines[i]);
+			}
+		}
+	}
+
+	var parseCSV = function(CSVString) {
+		var parsed = Papa.parse(CSVString, {header: true, dynamicTyping: true, skipEmptyLines: true});
+		if (parsed.errors.length > 0) {
+			console.log(CSVString)
+			console.log(parsed.errors);
+
+			throw "Error parsing index file";
+		}
+		return parsed.data;
+	}
+
+	var splitBySquiggly = function(prop, arr) {
+		return R.map(function(d) {d[prop] = d[prop].split("~"); return d}, arr);
+	};
+
+	this.state.refIndex = splitBySquiggly("matching_queries", parseCSV(refCSV));
+	this.state.queryIndex = splitBySquiggly("matching_refs", parseCSV(queryCSV));
+	this.data = parseCSV(overviewCSV);
 }
 
 DotPlot.prototype.draw = function() {
@@ -700,13 +770,27 @@ var DotApp = function(element, config) {
 	this.plot_element = this.element.append("div");
 
 	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width});
-}
 
+	this.messageCallback = function(message, sentiment) {
+		console.log(message);
+	}
+
+	if (typeof(config.messageCallback) === "function") {
+		this.messageCallback = config.messageCallback;
+	}
+}
 
 DotApp.prototype.setData = function(data) {
 	this.data = data;
 
 	this.dotplot.setData(data);
+}
+
+DotApp.prototype.setCoords = function(coords, index) {
+	this.coords = coords;
+	this.index = index;
+
+	this.dotplot.setCoords(coords, index);
 }
 
 DotApp.prototype.addAnnotationData = function(dataset) {

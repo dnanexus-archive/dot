@@ -103,7 +103,7 @@ InputPanel.prototype.set = function(variable, inputType, value) {
 		this.spec[variable].callback(value, inputType, variable);
 	}
 
-	console.log("set", variable, "as", inputType, "with value:", value);
+	// console.log("set", variable, "as", inputType, "with value:", value);
 
 	this.updateUI();
 };

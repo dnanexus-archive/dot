@@ -51,7 +51,6 @@ function setExamples(examples) {
 	.html(function(d) {return d.name})
 	.property("title", function(d) {return d.hover});
 
-
 }
 
 
@@ -95,6 +94,49 @@ function readTSVorCSV(source, inputType, variable) {
 				}
 			}
 		});
+	}
+}
+
+function saveDontRead(source, inputType, variable) {
+	VTTGlobal.inputStatus[variable] = "success";
+	setInputData(source, variable);
+}
+
+function readAsString(source, inputType, variable) {
+	VTTGlobal.inputStatus[variable] = "in progress";
+	VTTGlobal.loadedData[variable] = undefined;
+
+	if (inputType === "url") {
+		var request = new XMLHttpRequest();
+		request.open('GET', source, true);
+
+		request.onload = function() {
+			if (request.status >= 200 && request.status < 400) {
+				// Success!
+				setInputData(request.responseText, variable);
+			} else {
+				// We reached our target server, but it returned an error
+				VTTGlobal.inputStatus[variable] = "error";
+				showMessage("Could not download file because the server returned an error: " + request.status, "danger");
+			}
+		};
+
+		request.onerror = function() {
+			// There was a connection error of some sort
+			VTTGlobal.inputStatus[variable] = "error";
+			showMessage("There was an error connecting to the server to download the file at " + source, "danger");
+		};
+
+		request.send();
+	} else if (inputType === "File") {
+		if (source.size > 10000000) {
+			showMessage("Loading large file may take a while.", "warning");
+		}
+		var reader = new FileReader();
+		reader.readAsText(source);
+		reader.onload = function(event) {
+			setInputData(event.target.result, variable);
+		}
 	}
 }
 

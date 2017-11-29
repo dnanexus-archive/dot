@@ -313,22 +313,20 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 	ordered_tags = ["unique", "repetitive"]
 
 
-	# /////////////////////////      # start a new output file here called: output_prefix + "coords"
 	f_out_coords = open(output_prefix + ".coords", 'w')
 	f_out_coords.write("ref_start,ref_end,query_start,query_end,ref\n")
 
 	query_byte_positions = {}
 	query_lengths = {}
 
+	all_alignments = []
+
 	for query_name in fields_by_query:
 		lines = fields_by_query[query_name]
 		sum_forward = 0
 		sum_reverse = 0
-		amount_of_reference = {}
 		ref_position_scores = []
 		references_by_query[query_name] = set()
-		for ref,ref_length in reference_lengths:
-			amount_of_reference[ref] = 0
 
 		for fields in lines:
 			tag = fields[8]
@@ -355,7 +353,7 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 					sum_reverse += alignment_length
 				else:
 					sum_forward += alignment_length
-		
+
 		# orientation:
 		flip = sum_reverse > sum_forward
 		flip_by_query[query_name] = "-" if flip else "+"
@@ -373,6 +371,10 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 
 					output_fields = [fields[0], fields[1], fields[2], fields[3], fields[6]]
 					f_out_coords.write(",".join([str(i) for i in output_fields]) + "\n")
+					
+					# For alignment overview:
+					alignment_length = abs(int(fields[3])-int(fields[2]))
+					all_alignments.append(([fields[0], fields[1], fields[2], fields[3], fields[6], fields[7], fields[8]], alignment_length))
 
 		# ordering
 		if len(ref_position_scores) > 0:
@@ -396,8 +398,25 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 	# relative_ref_position_by_query is sorted by rel_pos
 	for query,rel_pos in relative_ref_position_by_query:
 		f_out_index.write("%s,%d,%s,%d,%s\n" % (query, query_lengths[query], flip_by_query[query_name], query_byte_positions[query], "~".join(references_by_query[query])))
-	f_out_index.close()
+	
 
+	f_out_index.write("#overview\n")
+	f_out_index.write("ref_start,ref_end,query_start,query_end,ref,query,tag\n")
+	# Only for references that make up at least 1% of the total reference length
+	# Pick the longest alignments for each 
+
+	max_overview_alignments = 10000
+
+	num_overview_alignments = min(max_overview_alignments,len(all_alignments))
+	if num_overview_alignments < len(all_alignments):
+		print("Included the longest " + str(max_overview_alignments) + " alignments in the index under #overview, out of a total of " + str(len(all_alignments)) + " alignments.")
+
+	all_alignments.sort(key=lambda x: -x[1])
+	overview_alignments = all_alignments[0:num_overview_alignments]
+	for tup in overview_alignments:
+		f_out_index.write(",".join([str(i) for i in tup[0]]) + "\n")
+
+	f_out_index.close()
 
 def main():
 	parser=argparse.ArgumentParser(description="Take a delta file, apply Assemblytics unique anchor filtering, and prepare coordinates input files for Dot")

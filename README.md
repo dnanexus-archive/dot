@@ -10,8 +10,8 @@ And can also be used locally by cloning this repository and simply opening the i
 After aligning genome assemblies or finished genomes against each other with MUMmer's nucmer, the alignments can be visualized with Dot. 
 Instead of generating static dot plot images on the command-line, Dot lets you interact with the alignments by zooming in and investigating regions in detail. 
 
-To prepare a .delta file (nucmer output) for Dot, run this python (2.7) script first: [https://dnanexus.github.io/dot/DotPrep.py](https://dnanexus.github.io/dot/DotPrep.py)
+To prepare a .delta file (nucmer output) for Dot, run this python (3.6) script first: [https://dnanexus.github.io/dot/DotPrep.py](https://dnanexus.github.io/dot/DotPrep.py)
 
-The DotPrep.py script will apply a unique anchor filtering algorithm to mark alignments as unique or repetitive. This algorithm analyzes all the alignments, and it needs to see unfiltered data to determine which alignments are repetitive, so make sure to run nucmer without any filtering options and without running delta-filter on the .delta file before passing it into DotPrep.py. 
+The DotPrep.py script will apply a unique anchor filtering algorithm to mark alignments as unique or repetitive. This algorithm analyzes all of the alignments, and it needs to see unfiltered data to determine which alignments are repetitive, so make sure to run nucmer without any filtering options and without running delta-filter on the .delta file before passing it into DotPrep.py. 
 
-The output of DotPrep.py includes the *.oriented_coords.csv that should be used with Dot for visualization.
+The output of DotPrep.py includes the *.coords and *.coords.idx that should be used with Dot for visualization.

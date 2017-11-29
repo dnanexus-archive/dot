@@ -104,7 +104,9 @@
 
 		// Define the inputs needed for this app
 		var inputSpec = {
-			alignments: {name: "Alignments", required: true, callback: readTSVorCSV},
+			// alignments: {name: "Alignments", required: true, callback: readTSVorCSV},
+			coords: {name: "Coords", required: true, callback: saveDontRead},
+			index: {name: "Coords index", required: true, callback: readAsString},
 			annotations: {name: "Annotations", required: false, callback: readTSVorCSV},
 		};
 		// the keys input and someOtherInput become the names for those parameters you can pass in through the URL (see examples' urlSuffix), and how you refer to each file within the visualization code in app.js
@@ -113,25 +115,33 @@
 
 		setInputSpec(inputSpec);
 
-
-
 		// Define some examples
 		var examples = [
 			{
-				name: "S. cerevisiae",
-				hover: "Saccharomyces cerevisiae MHAP assembly", 
-				urlSuffix: "?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
+				name: "Testing coords index with 1,000 row overview",
+				hover: "Arabidopsis", 
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/kgz8bPb5XG3V66Y50QGbPYxvq8b2YzV4ZkjG5jXY/Arabidopsis.coords&index=https://dl.dnanex.us/F/D/7VyX6xxfxq64012K90FjyPG9qpXxY08GBxBPfFzv/Arabidopsis.coords.idx"
 			},
 			{
-				name: "A. thaliana (ref annotated)",
-				hover: "Arabidopsis thaliana MHAP assembly", 
-				urlSuffix: "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/0pz7JZKJz099jv7ZpvfKJGBXJKv1Q42fyJjgzbjq/TAIR10_genes.csv"
+				name: "Testing coords index with 10,000 row overview",
+				hover: "Arabidopsis", 
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/8803Xx1P6x5pxx2fkJ08gg06GVxB1vVx7Jg5JZgJ/10000.coords&index=https://dl.dnanex.us/F/D/Vx4PP8Qqj4GjPFbBgxXQV0GZ060ZVJp8XpZ6g4Vv/10000.coords.idx"
 			},
-			{
-				name: "A. thaliana (query annotated)",
-				hover: "Arabidopsis thaliana MHAP assembly", 
-				urlSuffix: "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/F3vX12Z9kXGyb6bgGZ3q7bFJgbxBbbQQP3XkffVy/fake_test_query_genes.csv"
-			},
+			// {
+			// 	name: "S. cerevisiae",
+			// 	hover: "Saccharomyces cerevisiae MHAP assembly", 
+			// 	urlSuffix: "?alignments=https://dl.dnanex.us/F/D/F8jj7q411fqGXvPjVBvFgpJFyvjVYBBZj3v68p55/Saccharomyces_cerevisiae_MHAP_assembly.oriented_coords.csv"
+			// },
+			// {
+			// 	name: "A. thaliana (ref annotated)",
+			// 	hover: "Arabidopsis thaliana MHAP assembly", 
+			// 	urlSuffix: "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/0pz7JZKJz099jv7ZpvfKJGBXJKv1Q42fyJjgzbjq/TAIR10_genes.csv"
+			// },
+			// {
+			// 	name: "A. thaliana (query annotated)",
+			// 	hover: "Arabidopsis thaliana MHAP assembly", 
+			// 	urlSuffix: "?alignments=https://dl.dnanex.us/F/D/V4k3zK5p79GJ1pk1Gyp305Zb10YQ5qp0ZVF035y6/Arabidopsis_thaliana_MHAP_assembly.oriented_coords.csv&annotations=https://dl.dnanex.us/F/D/F3vX12Z9kXGyb6bgGZ3q7bFJgbxBbbQQP3XkffVy/fake_test_query_genes.csv"
+			// },
 		];
 
 		setExamples(examples);
