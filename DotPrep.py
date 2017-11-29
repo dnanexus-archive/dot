@@ -31,7 +31,7 @@ def run(args):
 
 
 def scrub(string):
-	return string.replace(",","_").replace("!","_").replace("~","_").replace("#", "_").replace("J","_")
+	return string.replace(",","_").replace("!","_").replace("~","_").replace("#", "_")
 
 
 def getQueryRefCombinations(filename):
