@@ -29,6 +29,8 @@ var DotPlot = function(element, config) {
 		yAnnotations: [],
 	};
 
+	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
+
 	this.k = { x: "ref", y: "query" };
 
 
@@ -67,11 +69,11 @@ DotPlot.prototype.setData = function(data) {
 	this.state.all_refs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
 	this.state.all_queries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
 
-	this.finishSetup();
+	this.initializePlot();
 	
 }
 
-DotPlot.prototype.finishSetup = function(data) {
+DotPlot.prototype.initializePlot = function(data) {
 	this.state.selected_refs = this.state.all_refs;
 	this.state.selected_queries = this.state.all_queries;
 
@@ -79,10 +81,12 @@ DotPlot.prototype.finishSetup = function(data) {
 	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), this.data);
 
 	// scales
-	this.scales = {x: null, y: null, zoom: {area: null, x: null, y: null}};
-	this.configureScales();
+	this.setScalesFromSelectedSeqs();
 
-	this.setUp();
+	this.layoutPlot();
+	this.initializeZoom()
+	this.setScaleRanges();
+
 	this.draw();
 }
 
@@ -94,7 +98,7 @@ DotPlot.prototype.setCoords = function(coords, index) {
 	this.state.all_refs = R.map(R.props(["ref","ref_length"]), this.state.refIndex);
 	this.state.all_queries = R.map(R.props(["query","query_length"]), this.state.queryIndex)
 
-	this.finishSetup();
+	this.initializePlot();
 }
 
 DotPlot.prototype.parseIndex = function(index) {
@@ -157,14 +161,21 @@ DotPlot.prototype.draw = function() {
 	this.drawAnnotationTracks();
 }
 
-DotPlot.prototype.configureScales = function() {
-	this.updateScales();
+DotPlot.prototype.setScaleRanges = function() {
+	//////////////////////////////////////    Set up scales for plotting    //////////////////////////////////////
 
-	this.scales.zoom.x = d3.scaleLinear();
-	this.scales.zoom.y = d3.scaleLinear();
+	// Set scales with the correct inner size, but don't use them to translate, since we will be applying a translate in the draw function itself
+	var xRange = [0, this.state.layout.inner.width];
+	var yRange = [this.state.layout.inner.height, 0];
+	this.scales.x.range(xRange);
+	this.scales.y.range(yRange);
+	this.scales.zoom.area = [[xRange[0], yRange[1]], [xRange[1], yRange[0]]];
+	this.scales.zoom.x.domain(xRange).range(xRange);
+	this.scales.zoom.y.domain(yRange).range(yRange);
+
 }
 
-DotPlot.prototype.updateScales = function() {
+DotPlot.prototype.setScalesFromSelectedSeqs = function() {
 	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
 	this.scales.y = new MultiSegmentScale({data: this.state.selected_queries, key_name: 0, length_name: 1});
 
@@ -174,9 +185,9 @@ DotPlot.prototype.updateScales = function() {
 
 DotPlot.prototype.seqSelectionDidChange = function() {
 	
+	this.setScalesFromSelectedSeqs();
 	this.resetZoom();
-	this.updateScales();
-	this.draw();
+	
 }
 
 DotPlot.prototype.resetRefQuerySelections = function(refNames) {
@@ -259,7 +270,10 @@ DotPlot.prototype.addAnnotationTrack = function(side, data) {
 		throw("in addAnnotationTrack, side must by 'x' or 'y'");
 	}
 
-	this.setUp();
+	this.layoutPlot();
+	this.initializeZoom()
+	this.setScaleRanges();
+
 	this.draw();
 }
 
@@ -346,6 +360,46 @@ DotPlot.prototype.layoutPlot = function() {
 		.style("left", this.state.layout.inner.left + "px")
 		.attr('width', this.state.layout.inner.width)
 		.attr('height', this.state.layout.inner.height);
+
+
+
+	// Draw outside border rectangle
+	// c.setTransform(1, 0, 0, 1, 0, 0);
+	// c.strokeStyle = "#f0f";
+	// c.rect(0,0,this.state.layout.whole.width,this.state.layout.whole.height);
+	// c.stroke();
+
+	////////////////////////////////////////    Borders    ////////////////////////////////////////
+
+	// Inner plot border
+	this.svg.select("rect.innerBorder")
+		.attr("x", this.state.layout.inner.left)
+		.attr("y", this.state.layout.inner.top)
+		.attr("width", this.state.layout.inner.width)
+		.attr("height", this.state.layout.inner.height)
+		.style("fill","transparent")
+		.style("stroke","black");
+
+	//////////////////////////////////////    Axis titles    //////////////////////////////////////
+
+	// Ref
+	this.svg.select("text.xTitle")
+		.attr("x", this.state.layout.inner.left + this.state.layout.inner.width/2)
+		.attr("y", this.state.layout.whole.height-10)
+		.style("dominant-baseline","middle")
+		.style("text-anchor","middle")
+		.style("font-size", 20)
+		.text(this.k.x);
+	
+	// Query
+	this.svg.select("g.yTitle")
+		.attr("transform", "translate(20," + this.state.layout.inner.height/2 + ")")
+		.select("text.yTitle")
+			.attr("transform", "rotate(-90)")
+			.style("dominant-baseline","middle")
+			.style("text-anchor","middle")
+			.style("font-size", 20)
+			.text(this.k.y);
 }
 
 DotPlot.prototype.initializeZoom = function() {
@@ -398,71 +452,8 @@ DotPlot.prototype.initializeZoom = function() {
 			
 		}
 	}
-
-
-
-	//////////////////////////////////////    Set up scales for plotting    //////////////////////////////////////
-
-	// Set scales with the correct inner size, but don't use them to translate, since we will be applying a translate in the draw function itself
-	var xRange = [0, this.state.layout.inner.width];
-	var yRange = [this.state.layout.inner.height, 0];
-	this.scales.x.range(xRange);
-	this.scales.y.range(yRange);
-	this.scales.zoom.area = [[xRange[0], yRange[1]], [xRange[1], yRange[0]]];
-	this.scales.zoom.x.domain(xRange).range(xRange);
-	this.scales.zoom.y.domain(yRange).range(yRange);
-
-
 }
 
-DotPlot.prototype.setUp = function() {
-	
-	this.layoutPlot();
-
-	
-	this.initializeZoom()
-
-	
-	var c = this.context;
-
-	// Draw outside border rectangle
-	// c.setTransform(1, 0, 0, 1, 0, 0);
-	// c.strokeStyle = "#f0f";
-	// c.rect(0,0,this.state.layout.whole.width,this.state.layout.whole.height);
-	// c.stroke();
-
-	////////////////////////////////////////    Borders    ////////////////////////////////////////
-
-	// Inner plot border
-	this.svg.select("rect.innerBorder")
-		.attr("x", this.state.layout.inner.left)
-		.attr("y", this.state.layout.inner.top)
-		.attr("width", this.state.layout.inner.width)
-		.attr("height", this.state.layout.inner.height)
-		.style("fill","transparent")
-		.style("stroke","black");
-
-	//////////////////////////////////////    Axis titles    //////////////////////////////////////
-
-	// Ref
-	this.svg.select("text.xTitle")
-		.attr("x", this.state.layout.inner.left + this.state.layout.inner.width/2)
-		.attr("y", this.state.layout.whole.height-10)
-		.style("dominant-baseline","middle")
-		.style("text-anchor","middle")
-		.style("font-size", 20)
-		.text(this.k.x);
-	
-	// Query
-	this.svg.select("g.yTitle")
-		.attr("transform", "translate(20," + this.state.layout.inner.height/2 + ")")
-		.select("text.yTitle")
-			.attr("transform", "rotate(-90)")
-			.style("dominant-baseline","middle")
-			.style("text-anchor","middle")
-			.style("font-size", 20)
-			.text(this.k.y);
-}
 
 function zoomFilterSnap(area, zoomScales, side) {
 	var xOrY = (side == "x" ? 0 : 1);
@@ -507,9 +498,6 @@ DotPlot.prototype.drawGrid = function() {
 
 	var boundariesX = zoomFilterSnap(area, this.scales.zoom, "x")(this.scales.x.getBoundaries());
 	var boundariesY = zoomFilterSnap(area, this.scales.zoom, "y")(this.scales.y.getBoundaries());
-
-
-	// console.log(boundariesX);
 
 
 	// //////////////////////    Grid by canvas    //////////////////////
@@ -677,13 +665,6 @@ DotPlot.prototype.drawAlignments = function() {
 			c.lineTo(line.end.x, line.end.y);
 		}
 	};
-
-	// var trace = R.curry(function(tag, x) {
-	// 	console.log(tag, x);
-	// 	return x;
-	// });
-
-
 
 	for (var tag in tagColors) {
 		c.beginPath();
