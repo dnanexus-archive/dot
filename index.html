@@ -105,7 +105,7 @@
 		// Define the inputs needed for this app
 		var inputSpec = {
 			// alignments: {name: "Alignments", required: true, callback: readTSVorCSV},
-			coords: {name: "Coords", required: true, callback: saveDontRead},
+			coords: {name: "Coords", required: true, callback: getRandomAccess},
 			index: {name: "Coords index", required: true, callback: readAsString},
 			annotations: {name: "Annotations", required: false, callback: readTSVorCSV},
 		};
@@ -120,7 +120,7 @@
 			{
 				name: "Testing coords index with 1,000 row overview",
 				hover: "Arabidopsis", 
-				urlSuffix: "?coords=https://dl.dnanex.us/F/D/K1kGq6GZ3zZv23xzG3qJVxz8vvJ10qbzbGvjPkzK/Arabidopsis.coords&index=https://dl.dnanex.us/F/D/98xx3j25f7b84ZFqQKFPPX259Z4JzFYZ9PvFb7qv/Arabidopsis.coords.idx"
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/Zz32ZX9b0X7vg8gyY0qG1xZ12773B9Kjk1xVqv7B/A.coords&index=https://dl.dnanex.us/F/D/zyQj2q6P8Vk1kfPQBPg0xj2bJ7V96p7VbZfJyqKJ/A.coords.idx"
 			},
 			// {
 			// 	name: "Testing coords index with 10,000 row overview",

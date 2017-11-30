@@ -17,17 +17,24 @@ var DotPlot = function(element, config) {
 		layout: {
 			whole: {height: config.height, width: config.width},
 			inner: {height: null, width: null, left: null, top: null},
-
 		},
-		all_refs: null,
-		all_queries: null,
-		selected_refs: null,
-		selected_queries: null,
-		data_by_chromosome: {},
+		allRefs: null,
+		allQueries: null,
+		selectedRefs: null,
+		selectedQueries: null,
+		dataByQuery: {},
+		queryInfo: [],
+		refInfo: [],
+		queryIndex: {},
 		annotationData: {},
 		xAnnotations: [],
 		yAnnotations: [],
 	};
+
+	this.styles = {
+		showRepetitiveAlignments: true,
+		highlightLoadedQueries: true,
+	}
 
 	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
 
@@ -66,19 +73,20 @@ DotPlot.prototype.setData = function(data) {
 	this.data = data;
 
 	// Set reference and query sequence sizes:
-	this.state.all_refs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
-	this.state.all_queries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
+	this.state.allRefs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
+	this.state.allQueries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
 
 	this.initializePlot();
 	
 }
 
 DotPlot.prototype.initializePlot = function(data) {
-	this.state.selected_refs = this.state.all_refs;
-	this.state.selected_queries = this.state.all_queries;
+	this.state.selectedRefs = this.state.allRefs;
+	this.state.selectedQueries = this.state.allQueries;
 
-	// Store data indexed by chromosome:
-	this.state.data_by_chromosome = R.groupBy(R.prop("ref"), this.data);
+	// Store data indexed by query:
+
+	this.state.dataByQuery = R.compose(R.map(R.groupBy(R.prop("tag"))), R.groupBy(R.prop("query")))(this.data);
 
 	// scales
 	this.setScalesFromSelectedSeqs();
@@ -95,8 +103,8 @@ DotPlot.prototype.setCoords = function(coords, index) {
 
 	this.parseIndex(index);
 
-	this.state.all_refs = R.map(R.props(["ref","ref_length"]), this.state.refIndex);
-	this.state.all_queries = R.map(R.props(["query","query_length"]), this.state.queryIndex)
+	this.state.allRefs = R.map(R.props(["ref","ref_length"]), this.state.refInfo);
+	this.state.allQueries = R.map(R.props(["query","query_length"]), this.state.queryInfo)
 
 	this.initializePlot();
 }
@@ -150,8 +158,10 @@ DotPlot.prototype.parseIndex = function(index) {
 		return R.map(function(d) {d[prop] = d[prop].split("~"); return d}, arr);
 	};
 
-	this.state.refIndex = splitBySquiggly("matching_queries", parseCSV(refCSV));
-	this.state.queryIndex = splitBySquiggly("matching_refs", parseCSV(queryCSV));
+	this.state.refInfo = splitBySquiggly("matching_queries", parseCSV(refCSV));
+	this.state.queryInfo = splitBySquiggly("matching_refs", parseCSV(queryCSV));
+
+	this.state.queryIndex = R.zipObj(R.pluck("query", this.state.queryInfo), this.state.queryInfo);
 	this.data = parseCSV(overviewCSV);
 }
 
@@ -176,23 +186,56 @@ DotPlot.prototype.setScaleRanges = function() {
 }
 
 DotPlot.prototype.setScalesFromSelectedSeqs = function() {
-	this.scales.x = new MultiSegmentScale({data: this.state.selected_refs, key_name: 0, length_name: 1});
-	this.scales.y = new MultiSegmentScale({data: this.state.selected_queries, key_name: 0, length_name: 1});
+	this.scales.x = new MultiSegmentScale({data: this.state.selectedRefs, key_name: 0, length_name: 1});
+	this.scales.y = new MultiSegmentScale({data: this.state.selectedQueries, key_name: 0, length_name: 1});
 
 	this.scales.x.range([0, this.state.layout.inner.width]);
 	this.scales.y.range([this.state.layout.inner.height, 0]);
 }
 
-DotPlot.prototype.seqSelectionDidChange = function() {
+DotPlot.prototype.loadAlignmentsByQueryAndTag = function(query, tag) {
+
+	this.state.dataByQuery[query][tag] = []; // ?????????? set here from coords file
+	console.log(this.state.queryIndex[query]);
+	var pos = this.state.queryIndex[query]["bytePosition_" + tag];
 	
+	var callback = function(data) {
+		console.log(data);
+	}
+
+	this.coords(pos, pos + 100, callback);
+
+	if (this.state.queryIndex[query]["loaded_" + tag]) {
+		console.log("loaded before", tag);
+	} else {
+		this.state.queryIndex[query]["loaded_" + tag] = true;
+		console.log("LOADING", tag);
+	}
+}
+
+DotPlot.prototype.loadDataFromSelection = function() {
+
+	var showRepeats = this.styles.showRepetitiveAlignments;
+
+	var _this = this;
+
+	R.map(function(d) {
+		_this.loadAlignmentsByQueryAndTag(d[0], "unique");
+		if (showRepeats) {
+			_this.loadAlignmentsByQueryAndTag(d[0], "repetitive");
+		}
+	}, this.state.selectedQueries);
+
+}
+
+DotPlot.prototype.seqSelectionDidChange = function() {
 	this.setScalesFromSelectedSeqs();
 	this.resetZoom();
-	
 }
 
 DotPlot.prototype.resetRefQuerySelections = function(refNames) {
-	this.state.selected_refs = this.state.all_refs;
-	this.state.selected_queries = this.state.all_queries;
+	this.state.selectedRefs = this.state.allRefs;
+	this.state.selectedQueries = this.state.allQueries;
 
 	this.seqSelectionDidChange();
 	
@@ -200,28 +243,30 @@ DotPlot.prototype.resetRefQuerySelections = function(refNames) {
 DotPlot.prototype.selectRefs = function(refNames) {
 	var state = this.state;
 
-	state.selected_refs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.all_refs);
+	state.selectedRefs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.allRefs);
 
 	var matchNames = R.filter(function(d) {return R.contains(d.ref, refNames)});
 	var getQueries = R.compose(R.uniq, R.flatten, R.pluck("matching_queries"), matchNames);
-	var queryNames = getQueries(state.refIndex);
+	var queryNames = getQueries(state.refInfo);
 
-	state.selected_queries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.all_queries);
+	state.selectedQueries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.allQueries);
 
+	this.loadDataFromSelection();
 	this.seqSelectionDidChange();
 }
 
 DotPlot.prototype.selectQueries = function(queryNames) {
 	var state = this.state;
 
-	state.selected_queries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.all_queries);
+	state.selectedQueries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.allQueries);
 
 	var matchNames = R.filter(function(d) {return R.contains(d.query, queryNames)});
 	var getRefs = R.compose(R.uniq, R.flatten, R.pluck("matching_refs"), matchNames);
-	var refNames = getRefs(state.queryIndex);
+	var refNames = getRefs(state.queryInfo);
 
-	state.selected_refs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.all_refs);
+	state.selectedRefs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.allRefs);
 
+	this.loadDataFromSelection();
 	this.seqSelectionDidChange();
 }
 
@@ -241,8 +286,8 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 		var seqSide = this.k[side];
 		var annotSeqs = R.uniq(R.pluck(seqSide, dataset.data));
 
-		var alignmentSeqs = (seqSide === "ref" ? R.pluck(0, this.state.all_refs) : R.pluck(0, this.state.all_queries));
-		var tmpScale = (seqSide === "ref" ? new MultiSegmentScale({data: this.state.all_refs, key_name: 0, length_name: 1}) : new MultiSegmentScale({data: this.state.all_queries, key_name: 0, length_name: 1}));
+		var alignmentSeqs = (seqSide === "ref" ? R.pluck(0, this.state.allRefs) : R.pluck(0, this.state.allQueries));
+		var tmpScale = (seqSide === "ref" ? new MultiSegmentScale({data: this.state.allRefs, key_name: 0, length_name: 1}) : new MultiSegmentScale({data: this.state.allQueries, key_name: 0, length_name: 1}));
 
 		var sharedSeqs = R.intersection(alignmentSeqs, annotSeqs);
 		var annotSeqsNotInAlignments = R.difference(annotSeqs, alignmentSeqs);
@@ -603,13 +648,33 @@ DotPlot.prototype.drawGrid = function() {
 		.style("text-anchor","end")
 		.style("font-size", 10);
 
-	yLabels.merge(newYLabels)
+	var yLabels = yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(function(d) {return d.name})
 		.style("cursor", "pointer")
 		.on("click", setQuery);
 
+	var queryIndex = this.state.queryIndex;
+
+	var showRepetitiveAlignments = this.styles.showRepetitiveAlignments;
+	var loaded = function(query) {
+		if (queryIndex[query] === undefined) {
+			return false;
+		}
+		if (!queryIndex[query]["loaded_unique"]) {
+			return false;
+		}
+		if (showRepetitiveAlignments && queryIndex[query]["loaded_repetitive"] === false) {
+			return false;
+		}
+		return true;
+	}
+	if (this.styles.highlightLoadedQueries) {
+		yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "red"}})
+	} else {
+		yLabels.style("fill", function(d) {return "black"})
+	}
 }
 
 DotPlot.prototype.drawAlignments = function() {
@@ -670,13 +735,12 @@ DotPlot.prototype.drawAlignments = function() {
 		c.beginPath();
 		c.strokeStyle = tagColors[tag]
 
-		R.map(function(refInfo) {
-			var ref = refInfo[0];
-			R.compose(
-				R.map(drawLine),
-				R.filter(R.propEq("tag",tag))
-			)(state.data_by_chromosome[ref]);
-		}, state.selected_refs);
+		R.map(function(queryInfo) {
+			var query = queryInfo[0];
+			if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
+				R.map(drawLine, state.dataByQuery[query][tag]);
+			}
+		}, state.selectedQueries);
 
 		c.stroke();
 	}

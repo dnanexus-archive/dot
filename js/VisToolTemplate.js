@@ -2,6 +2,7 @@ var VTTGlobal = {
 	inputSpec: undefined, 
 	currentPage: "#first",
 	inputStatus: {},
+	blobs: {},
 	loadedData: {},
 	layout: {},
 };
@@ -102,6 +103,50 @@ function saveDontRead(source, inputType, variable) {
 	setInputData(source, variable);
 }
 
+function getRandomAccess(source, inputType, variable) {
+
+	if (inputType === "url") {
+
+		var request = new XMLHttpRequest();
+
+		request.open('GET', source, true);
+		request.setRequestHeader("Range", "bytes=0-10000000");
+		request.responseType = "blob";
+		request.onload = function() {
+			console.log("For", variable + ": Found file of size " + Math.round(request.response.size/1024/1024*100)/100 + "MB.")
+			// Convert Blob to File
+			var blob = request.response;
+			blob.lastModifiedDate = new Date();
+			blob.name = source.split("/").reverse()[0];
+
+			VTTGlobal.blobs[variable] = blob;
+
+			var randomAccessFunction = function(startByte, endByte, asyncCallback) {
+				var reader = new FileReader();
+				reader.readAsBinaryString(VTTGlobal.blobs[variable].slice(startByte, endByte));
+				reader.onload = function(event) {
+					asyncCallback(event.target.result);
+				}
+			}
+			setInputData(randomAccessFunction, variable);
+		};
+
+		request.send();
+
+	} else if (inputType === "File") {
+		VTTGlobal.blobs[variable] = source;
+
+		var randomAccessFunction = function(startByte, endByte, asyncCallback) {
+			var reader = new FileReader();
+			reader.readAsBinaryString(VTTGlobal.blobs[variable].slice(startByte, endByte));
+			reader.onload = function(event) {
+				asyncCallback(event.target.result);
+			}
+		}
+		setInputData(randomAccessFunction, variable);
+	}
+}
+
 function readAsString(source, inputType, variable) {
 	VTTGlobal.inputStatus[variable] = "in progress";
 	VTTGlobal.loadedData[variable] = undefined;
@@ -139,6 +184,7 @@ function readAsString(source, inputType, variable) {
 		}
 	}
 }
+
 
 // Create input fields based on the inputSpec
 function setInputSpec(inputSpec) {
