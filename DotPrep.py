@@ -356,11 +356,10 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 
 		# orientation:
 		flip = sum_reverse > sum_forward
-		flip_by_query[query_name] = "-" if flip else "+"
-
-		query_byte_positions[query_name] = f_out_coords.tell();
+		flip_by_query[query_name] = "-" if (flip == True) else "+"
 
 		for tag in ordered_tags:
+			query_byte_positions[(query_name, tag)] = f_out_coords.tell()
 			f_out_coords.write("!" + query_name + "!" + tag +"\n")
 			
 			for fields in lines:
@@ -394,18 +393,15 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 		f_out_index.write("%s,%d,%s\n" % (ref,ref_length,"~".join(queries_by_reference[ref])))
 
 	f_out_index.write("#query\n")
-	f_out_index.write("query,query_length,orientation,bytePosition,matching_refs\n")
+	f_out_index.write("query,query_length,orientation,bytePosition_unique,bytePosition_repetitive,matching_refs\n")
 	# relative_ref_position_by_query is sorted by rel_pos
 	for query,rel_pos in relative_ref_position_by_query:
-		f_out_index.write("%s,%d,%s,%d,%s\n" % (query, query_lengths[query], flip_by_query[query_name], query_byte_positions[query], "~".join(references_by_query[query])))
-	
+		f_out_index.write("%s,%d,%s,%d,%d,%s\n" % (query, query_lengths[query], flip_by_query[query], query_byte_positions[(query,"unique")], query_byte_positions[(query,"repetitive")], "~".join(references_by_query[query])))
 
 	f_out_index.write("#overview\n")
 	f_out_index.write("ref_start,ref_end,query_start,query_end,ref,query,tag\n")
-	# Only for references that make up at least 1% of the total reference length
-	# Pick the longest alignments for each 
 
-	max_overview_alignments = 10000
+	max_overview_alignments = 1000
 
 	num_overview_alignments = min(max_overview_alignments,len(all_alignments))
 	if num_overview_alignments < len(all_alignments):
