@@ -733,7 +733,7 @@ DotPlot.prototype.drawAlignments = function() {
 
 	for (var tag in tagColors) {
 		c.beginPath();
-		c.strokeStyle = tagColors[tag]
+		c.strokeStyle = tagColors[tag];
 
 		R.map(function(queryInfo) {
 			var query = queryInfo[0];
@@ -777,6 +777,10 @@ var Track = function(config) {
 
 	this.state = {left: 0, top: 0, height: 30, width: 30};
 	this.side = config.side;
+
+	this.styles = {
+		shape: "rectangle"
+	}
 
 	this.data = config.data;
 }
