@@ -16,7 +16,8 @@ def run(args):
 	filename = args.delta
 	unique_length = args.unique_length
 	output_filename = args.out
-	keep_small_uniques = True #args.keep_small_uniques
+	keep_small_uniques = True
+	max_overview_alignments = args.overview
 
 	# Read through the file and store information indexed by Query sequence names
 	header_lines_by_query, lines_by_query = getQueryRefCombinations(filename)
@@ -27,7 +28,7 @@ def run(args):
 	# Write a filtered delta file, and coordinate files with uniqueness tags
 	reference_lengths, fields_by_query = writeFilteredDeltaFile(filename, output_filename, unique_alignments, unique_length, header_lines_by_query)
 	
-	index_for_dot(reference_lengths, fields_by_query, output_filename)
+	index_for_dot(reference_lengths, fields_by_query, output_filename, max_overview_alignments)
 
 
 def scrub(string):
@@ -35,7 +36,7 @@ def scrub(string):
 
 
 def getQueryRefCombinations(filename):
-	print("header:")
+	print("header from delta file:")
 	
 	try:
 		f = gzip.open(filename, 'rt')
@@ -290,7 +291,7 @@ def writeFilteredDeltaFile(filename, output_filename, unique_alignments, unique_
 	
 	return reference_lengths, fields_by_query
 
-def index_for_dot(reference_lengths, fields_by_query, output_prefix):
+def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overview_alignments):
 
 	#  Find the order of the reference chromosomes
 	reference_lengths.sort(key=lambda x: natural_key(x[0]))
@@ -409,11 +410,9 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 	f_out_index.write("#overview\n")
 	f_out_index.write("ref_start,ref_end,query_start,query_end,ref,query,tag\n")
 
-	max_overview_alignments = 1000
-
 	num_overview_alignments = min(max_overview_alignments,len(all_alignments))
 	if num_overview_alignments < len(all_alignments):
-		print("Included the longest " + str(max_overview_alignments) + " alignments in the index under #overview, out of a total of " + str(len(all_alignments)) + " alignments.")
+		print("Included the longest " + str(max_overview_alignments) + " alignments in the index under #overview (change this with the --overview parameter), out of a total of " + str(len(all_alignments)) + " alignments.")
 
 	all_alignments.sort(key=lambda x: -x[1])
 	overview_alignments = all_alignments[0:num_overview_alignments]
@@ -427,6 +426,7 @@ def main():
 	parser.add_argument("--delta",help="delta file" ,dest="delta", type=str, required=True)
 	parser.add_argument("--out",help="output file" ,dest="out", type=str, default="output")
 	parser.add_argument("--unique-length",help="The total length of unique sequence an alignment must have on the query side to be retained. Default: 10000" ,dest="unique_length",type=int, default=10000)
+	parser.add_argument("--overview",help="The number of alignments to include in the coords.idx output file, which will be shown in the overview for Dot" ,dest="overview",type=int, default=10000)
 	parser.set_defaults(func=run)
 	args=parser.parse_args()
 	args.func(args)
