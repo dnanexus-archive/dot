@@ -137,7 +137,7 @@ DotPlot.prototype.parseIndex = function(index) {
 			} else if (reading == "overview") {
 				overviewCSV += lines[i] + "\n";
 			} else {
-				console.log("Unrecognized lines in index file:");
+				console.log("Unrecognized line in index file:");
 				console.log(lines[i]);
 			}
 		}
@@ -162,8 +162,6 @@ DotPlot.prototype.parseIndex = function(index) {
 	this.state.queryInfo = splitBySquiggly("matching_refs", parseCSV(queryCSV));
 
 	this.state.queryIndex = R.zipObj(R.pluck("query", this.state.queryInfo), this.state.queryInfo);
-	
-	console.log(this.state.queryIndex);
 
 	this.data = parseCSV(overviewCSV);
 }
@@ -235,7 +233,7 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 			len = _this.state.dataByQuery[query]["unique"].length;
 		}
 		_this.state.dataByQuery[query]["unique"] = parseCoords(content["unique"], query, "unique");
-		console.log("Replaced overview of", len, "unique alignments with", _this.state.dataByQuery[query]["unique"].length);
+		console.log(query, ": Replaced overview of", len, "unique alignments with", _this.state.dataByQuery[query]["unique"].length);
 
 
 		var len = 0;
@@ -243,13 +241,12 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 			len = _this.state.dataByQuery[query]["repetitive"].length;
 		}
 		_this.state.dataByQuery[query]["repetitive"] = parseCoords(content["repetitive"], query, "repetitive");
-		console.log("Replaced overview of", len, "repetitive alignments with", _this.state.dataByQuery[query]["repetitive"].length);
-
+		console.log(query, ": Replaced overview of", len, "repetitive alignments with", _this.state.dataByQuery[query]["repetitive"].length);
 
 	} else {
 		var before = _this.state.dataByQuery[query][tag].length; 
 		_this.state.dataByQuery[query][tag] = parseCoords(content[tag], query, tag);
-		console.log("Replaced overview of", before, tag, "alignments with", _this.state.dataByQuery[query][tag].length);
+		console.log(query, ": Replaced overview of", before, tag, "alignments with", _this.state.dataByQuery[query][tag].length);
 	}
 
 	_this.draw();
@@ -276,20 +273,18 @@ DotPlot.prototype.loadAlignmentsByQuery = function(query) {
 	}
 
 	if (toGet.unique && toGet.repetitive) {
-		console.log("get both");
+		// console.log("get both");
 		this.coords(uniq, end, setAlignments(this, query, "both"));
 		this.state.queryIndex[query]["loaded_unique"] = true;
 		this.state.queryIndex[query]["loaded_repetitive"] = true;
 	} else if (toGet.unique) {
-		console.log("get unique only");
+		// console.log("get unique only");
 		this.coords(uniq, rep, setAlignments(this, query, "unique"));
 		this.state.queryIndex[query]["loaded_unique"] = true;
 	} else if (toGet.repetitive) {
-		console.log("get repetitive only");
+		// console.log("get repetitive only");
 		this.coords(rep, end, setAlignments(this, query, "repetitive"));
 		this.state.queryIndex[query]["loaded_repetitive"] = true;
-	} else {
-		console.log("nothing");
 	}
 }
 
@@ -754,7 +749,7 @@ DotPlot.prototype.drawGrid = function() {
 		return true;
 	}
 	if (this.styles.highlightLoadedQueries) {
-		yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "red"}})
+		yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
 	} else {
 		yLabels.style("fill", function(d) {return "black"})
 	}
