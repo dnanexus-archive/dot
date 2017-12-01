@@ -320,8 +320,10 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 	query_lengths = {}
 
 	all_alignments = []
+	last_query = ""
 
 	for query_name in fields_by_query:
+
 		lines = fields_by_query[query_name]
 		sum_forward = 0
 		sum_reverse = 0
@@ -358,7 +360,9 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 		flip = sum_reverse > sum_forward
 		flip_by_query[query_name] = "-" if (flip == True) else "+"
 
+
 		for tag in ordered_tags:
+			query_byte_positions[(last_query, "end")] = f_out_coords.tell()
 			query_byte_positions[(query_name, tag)] = f_out_coords.tell()
 			f_out_coords.write("!" + query_name + "!" + tag +"\n")
 			
@@ -381,6 +385,10 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 		else:
 			relative_ref_position_by_query.append((query_name,0))
 
+		last_query = query_name
+
+
+	query_byte_positions[(last_query, "end")] = f_out_coords.tell()
 
 	relative_ref_position_by_query.sort(key=lambda x: x[1])
 
@@ -393,10 +401,10 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix):
 		f_out_index.write("%s,%d,%s\n" % (ref,ref_length,"~".join(queries_by_reference[ref])))
 
 	f_out_index.write("#query\n")
-	f_out_index.write("query,query_length,orientation,bytePosition_unique,bytePosition_repetitive,matching_refs\n")
+	f_out_index.write("query,query_length,orientation,bytePosition_unique,bytePosition_repetitive,bytePosition_end,matching_refs\n")
 	# relative_ref_position_by_query is sorted by rel_pos
 	for query,rel_pos in relative_ref_position_by_query:
-		f_out_index.write("%s,%d,%s,%d,%d,%s\n" % (query, query_lengths[query], flip_by_query[query], query_byte_positions[(query,"unique")], query_byte_positions[(query,"repetitive")], "~".join(references_by_query[query])))
+		f_out_index.write("%s,%d,%s,%d,%d,%d,%s\n" % (query, query_lengths[query], flip_by_query[query], query_byte_positions[(query,"unique")], query_byte_positions[(query,"repetitive")] - query_byte_positions[(query,"unique")], query_byte_positions[(query,"end")] - query_byte_positions[(query,"repetitive")],"~".join(references_by_query[query])))
 
 	f_out_index.write("#overview\n")
 	f_out_index.write("ref_start,ref_end,query_start,query_end,ref,query,tag\n")

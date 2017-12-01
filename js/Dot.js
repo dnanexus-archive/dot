@@ -162,6 +162,9 @@ DotPlot.prototype.parseIndex = function(index) {
 	this.state.queryInfo = splitBySquiggly("matching_refs", parseCSV(queryCSV));
 
 	this.state.queryIndex = R.zipObj(R.pluck("query", this.state.queryInfo), this.state.queryInfo);
+	
+	console.log(this.state.queryIndex);
+
 	this.data = parseCSV(overviewCSV);
 }
 
@@ -193,37 +196,117 @@ DotPlot.prototype.setScalesFromSelectedSeqs = function() {
 	this.scales.y.range([this.state.layout.inner.height, 0]);
 }
 
-DotPlot.prototype.loadAlignmentsByQueryAndTag = function(query, tag) {
-
-	this.state.dataByQuery[query][tag] = []; // ?????????? set here from coords file
-	console.log(this.state.queryIndex[query]);
-	var pos = this.state.queryIndex[query]["bytePosition_" + tag];
+function parseCoords(coords, query, tag) {
 	
-	var callback = function(data) {
-		console.log(data);
+	var parsed = Papa.parse("ref_start,ref_end,query_start,query_end,ref\n" + coords, {header: true, dynamicTyping: true, skipEmptyLines: true});
+	if (parsed.errors.length > 0) {
+		console.log("Error parsing a chunk of the coords file");
+		console.log(parsed.errors);
+		console.log(coords);
 	}
 
-	this.coords(pos, pos + 100, callback);
+	return R.map(function(d) {d.query = query; d.tag = tag; return d}, parsed.data);
+}
 
-	if (this.state.queryIndex[query]["loaded_" + tag]) {
-		console.log("loaded before", tag);
+var setAlignments = R.curry(function(_this, query, tag, data) {
+	var lines = data.split("\n");
+	
+	var content = {unique: "", repetitive: ""};
+	var reading = undefined;
+	for (var i in lines) {
+		if (lines[i][0] === "!") {
+			if (lines[i] == "!" + query + "!unique") {
+				reading = "unique";
+			} else if (lines[i] == "!" + query + "!repetitive") {
+				reading = "repetitive";
+			} else {
+				reading = undefined;
+			}
+		} else if (reading !== undefined) {
+			content[reading] += lines[i] + "\n";
+		}
+	}
+
+	
+
+	if (tag === "both") {
+		var len = 0;
+		if (_this.state.dataByQuery[query]["unique"]) {
+			len = _this.state.dataByQuery[query]["unique"].length;
+		}
+		_this.state.dataByQuery[query]["unique"] = parseCoords(content["unique"], query, "unique");
+		console.log("Replaced overview of", len, "unique alignments with", _this.state.dataByQuery[query]["unique"].length);
+
+
+		var len = 0;
+		if (_this.state.dataByQuery[query]["repetitive"]) {
+			len = _this.state.dataByQuery[query]["repetitive"].length;
+		}
+		_this.state.dataByQuery[query]["repetitive"] = parseCoords(content["repetitive"], query, "repetitive");
+		console.log("Replaced overview of", len, "repetitive alignments with", _this.state.dataByQuery[query]["repetitive"].length);
+
+
 	} else {
-		this.state.queryIndex[query]["loaded_" + tag] = true;
-		console.log("LOADING", tag);
+		var before = _this.state.dataByQuery[query][tag].length; 
+		_this.state.dataByQuery[query][tag] = parseCoords(content[tag], query, tag);
+		console.log("Replaced overview of", before, tag, "alignments with", _this.state.dataByQuery[query][tag].length);
+	}
+
+	_this.draw();
+
+});
+
+DotPlot.prototype.loadAlignmentsByQuery = function(query) {
+	var toGet = {unique: true, repetitive: true};
+
+	if (this.state.queryIndex[query]["loaded_unique"]) {
+		toGet.unique = false;
+	}
+
+	if (this.state.queryIndex[query]["loaded_repetitive"] || this.styles.showRepetitiveAlignments === false) {
+		toGet.repetitive = false;
+	}
+
+	var uniq = this.state.queryIndex[query]["bytePosition_unique"];
+	var rep = uniq + this.state.queryIndex[query]["bytePosition_repetitive"];
+	var end = rep + this.state.queryIndex[query]["bytePosition_end"];
+
+	if (this.state.dataByQuery[query] === undefined) {
+		this.state.dataByQuery[query] = {};
+	}
+
+	if (toGet.unique && toGet.repetitive) {
+		console.log("get both");
+		this.coords(uniq, end, setAlignments(this, query, "both"));
+		this.state.queryIndex[query]["loaded_unique"] = true;
+		this.state.queryIndex[query]["loaded_repetitive"] = true;
+	} else if (toGet.unique) {
+		console.log("get unique only");
+		this.coords(uniq, rep, setAlignments(this, query, "unique"));
+		this.state.queryIndex[query]["loaded_unique"] = true;
+	} else if (toGet.repetitive) {
+		console.log("get repetitive only");
+		this.coords(rep, end, setAlignments(this, query, "repetitive"));
+		this.state.queryIndex[query]["loaded_repetitive"] = true;
+	} else {
+		console.log("nothing");
 	}
 }
 
 DotPlot.prototype.loadDataFromSelection = function() {
 
-	var showRepeats = this.styles.showRepetitiveAlignments;
+	// var showRepeats = this.styles.showRepetitiveAlignments;
 
 	var _this = this;
 
 	R.map(function(d) {
-		_this.loadAlignmentsByQueryAndTag(d[0], "unique");
-		if (showRepeats) {
-			_this.loadAlignmentsByQueryAndTag(d[0], "repetitive");
-		}
+
+		_this.loadAlignmentsByQuery(d[0]);
+
+		// _this.loadAlignmentsByQueryAndTag(d[0], "unique");
+		// if (showRepeats) {
+		// 	_this.loadAlignmentsByQueryAndTag(d[0], "repetitive");
+		// }
 	}, this.state.selectedQueries);
 
 }
