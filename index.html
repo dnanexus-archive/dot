@@ -4,6 +4,7 @@
 	
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
 	<link rel="stylesheet" href="css/VisToolTemplate.css" />
+	<link rel="stylesheet" href="css/SuperUI.css" />
 </head>
 <body>
 
@@ -89,8 +90,9 @@
 	<!-- Takes care of requesting the right inputs from the user -->
 	<script src="js/InputPanel.js"></script>
 
-	<!-- Load Dot -->
+	<!-- Load Dot and its specific dependencies -->
 	<script src="js/MultiSegmentScale.js"></script>
+	<script src="js/SuperUI.js"></script>
 	<script src="js/Dot.js"></script>
 
 	<!-- app.js holds your visualization. Edit app.js to change the visualization -->
@@ -98,6 +100,7 @@
 
 	<!-- VisToolTemplate.js sets up the looks and basic functionality of the site. Edit VisToolTemplate.js to control what inputs your app should take from the user or how it should parse the data -->
 	<script src="js/VisToolTemplate.js"></script>
+
 
 
 	<script type="text/javascript">
@@ -122,11 +125,11 @@
 				hover: "Arabidopsis", 
 				urlSuffix: "?coords=https://dl.dnanex.us/F/D/jXxKKK3gFv1j6P6YKFbBf92xF9FvFbz1Q6Xkjv0v/B.coords&index=https://dl.dnanex.us/F/D/b3ZY6fbKKpyzGqxZ7zGPzxxgkBPV3ZG0KzxF0gG3/B.coords.idx"
 			},
-			// {
-			// 	name: "Testing coords index with 1,000 row overview, with annotations",
-			// 	hover: "Arabidopsis", 
-			// 	urlSuffix: "?coords=https://dl.dnanex.us/F/D/Zz32ZX9b0X7vg8gyY0qG1xZ12773B9Kjk1xVqv7B/A.coords&index=https://dl.dnanex.us/F/D/zyQj2q6P8Vk1kfPQBPg0xj2bJ7V96p7VbZfJyqKJ/A.coords.idx&annotations=https://dl.dnanex.us/F/D/F3vX12Z9kXGyb6bgGZ3q7bFJgbxBbbQQP3XkffVy/fake_test_query_genes.csv"
-			// },
+			{
+				name: "Testing coords index with 1,000 row overview, with annotations",
+				hover: "Arabidopsis", 
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/jXxKKK3gFv1j6P6YKFbBf92xF9FvFbz1Q6Xkjv0v/B.coords&index=https://dl.dnanex.us/F/D/b3ZY6fbKKpyzGqxZ7zGPzxxgkBPV3ZG0KzxF0gG3/B.coords.idx&annotations=https://dl.dnanex.us/F/D/F3vX12Z9kXGyb6bgGZ3q7bFJgbxBbbQQP3XkffVy/fake_test_query_genes.csv"
+			},
 			// {
 			// 	name: "Testing coords index with 10,000 row overview",
 			// 	hover: "Arabidopsis", 
@@ -152,7 +155,7 @@
 		setExamples(examples);
 
 		// If you need to communicate with the user, you can send them a message like this:
-		showMessage("Welcome to Dot, see the Tutorial page for information on getting started.", "info");
+		// showMessage("Welcome to Dot, see the Tutorial page for information on getting started.", "info");
 		// Use "success", "warning", "danger", or "info" to make the alert box color match the sentiment of your message
 
 

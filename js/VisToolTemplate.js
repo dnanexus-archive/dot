@@ -113,7 +113,7 @@ function getRandomAccess(source, inputType, variable) {
 		request.setRequestHeader("Range", "bytes=0-10000000");
 		request.responseType = "blob";
 		request.onload = function() {
-			console.log("For", variable + ": Found file of size " + Math.round(request.response.size/1024/1024*100)/100 + "MB.")
+			// console.log("For", variable + ": Found file of size " + Math.round(request.response.size/1024/1024*100)/100 + "MB.")
 			// Convert Blob to File
 			var blob = request.response;
 			blob.lastModifiedDate = new Date();
@@ -239,7 +239,7 @@ var w = window,
 
 VTTGlobal.layout = {
 	svg: {
-		width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.90,
+		width: (w.innerWidth || e.clientWidth || g.clientWidth)*0.99,
 		height: (w.innerHeight || e.clientHeight || g.clientHeight)*0.80
 	},
 	margin: {

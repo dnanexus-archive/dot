@@ -1,0 +1,39 @@
+.d3-superUI-table {
+	border-spacing: 0px;
+	width: 100%;
+	/*table-layout: fixed;*/
+
+}
+
+.d3-superUI-table th, .d3-superUI-table td {
+	padding: 0.5vmin 0.5vmin 0.5vmin 0.5vmin;
+	/*border: 0.1px solid #cccccc;*/
+    border-bottom: 1px solid #ddd;
+}
+
+.d3-superUI-table input {
+	width: 100%;
+}
+
+
+.superColorScaleUI .color_element  {
+	width: 40px;
+}
+
+.superColorScaleUI .color_element {
+	display: inline-block;
+	padding: 0.5vmin 2vmin 0.5vmin 0.5vmin;
+	text-align: right;
+}
+
+.superColorScaleUI .color_element input {
+	width: 30px;
+}
+
+.superColorScaleUI textarea {
+	font-size: 12px;
+}
+
+.d3-superUI-table .superUI-value {
+	width: 80px;
+}

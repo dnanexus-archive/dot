@@ -8,8 +8,6 @@ var DotPlot = function(element, config) {
 	
 	this.element = element;
 
-	validateConfig(config);
-
 	this.config = config;
 	this.data = undefined;
 
@@ -30,11 +28,6 @@ var DotPlot = function(element, config) {
 		xAnnotations: [],
 		yAnnotations: [],
 	};
-
-	this.styles = {
-		showRepetitiveAlignments: true,
-		highlightLoadedQueries: true,
-	}
 
 	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
 
@@ -66,6 +59,8 @@ var DotPlot = function(element, config) {
 
 	this.xAnnotations = this.svg.append("g");
 	this.yAnnotations = this.svg.append("g");
+
+	this.reset_styles();
 
 }
 
@@ -228,23 +223,26 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 	
 
 	if (tag === "both") {
-		var len = 0;
+		var before = 0;
 		if (_this.state.dataByQuery[query]["unique"]) {
-			len = _this.state.dataByQuery[query]["unique"].length;
+			before = _this.state.dataByQuery[query]["unique"].length;
 		}
 		_this.state.dataByQuery[query]["unique"] = parseCoords(content["unique"], query, "unique");
-		console.log(query, ": Replaced overview of", len, "unique alignments with", _this.state.dataByQuery[query]["unique"].length);
+		console.log(query, ": Replaced overview of", before, "unique alignments with", _this.state.dataByQuery[query]["unique"].length);
 
 
-		var len = 0;
+		before = 0;
 		if (_this.state.dataByQuery[query]["repetitive"]) {
-			len = _this.state.dataByQuery[query]["repetitive"].length;
+			before = _this.state.dataByQuery[query]["repetitive"].length;
 		}
 		_this.state.dataByQuery[query]["repetitive"] = parseCoords(content["repetitive"], query, "repetitive");
-		console.log(query, ": Replaced overview of", len, "repetitive alignments with", _this.state.dataByQuery[query]["repetitive"].length);
+		console.log(query, ": Replaced overview of", before, "repetitive alignments with", _this.state.dataByQuery[query]["repetitive"].length);
 
 	} else {
-		var before = _this.state.dataByQuery[query][tag].length; 
+		var before = 0;
+		if (_this.state.dataByQuery[query][tag]) {
+			before = _this.state.dataByQuery[query][tag].length; 
+		}
 		_this.state.dataByQuery[query][tag] = parseCoords(content[tag], query, tag);
 		console.log(query, ": Replaced overview of", before, tag, "alignments with", _this.state.dataByQuery[query][tag].length);
 	}
@@ -260,7 +258,7 @@ DotPlot.prototype.loadAlignmentsByQuery = function(query) {
 		toGet.unique = false;
 	}
 
-	if (this.state.queryIndex[query]["loaded_repetitive"] || this.styles.showRepetitiveAlignments === false) {
+	if (this.state.queryIndex[query]["loaded_repetitive"] || this.styles["show repetitive alignments"] === false) {
 		toGet.repetitive = false;
 	}
 
@@ -290,7 +288,7 @@ DotPlot.prototype.loadAlignmentsByQuery = function(query) {
 
 DotPlot.prototype.loadDataFromSelection = function() {
 
-	// var showRepeats = this.styles.showRepetitiveAlignments;
+	// var showRepeats = this.styles["show repetitive alignments"];
 
 	var _this = this;
 
@@ -735,7 +733,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	var queryIndex = this.state.queryIndex;
 
-	var showRepetitiveAlignments = this.styles.showRepetitiveAlignments;
+	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
 	var loaded = function(query) {
 		if (queryIndex[query] === undefined) {
 			return false;
@@ -748,7 +746,7 @@ DotPlot.prototype.drawGrid = function() {
 		}
 		return true;
 	}
-	if (this.styles.highlightLoadedQueries) {
+	if (this.styles["highlight loaded queries"]) {
 		yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
 	} else {
 		yLabels.style("fill", function(d) {return "black"})
@@ -799,44 +797,82 @@ DotPlot.prototype.drawAlignments = function() {
 		return (line.start.y > area[1][1] && line.end.y > area[1][1])
 	}
 
-	var tagColors = {repetitive: "#f00", unique: "#000"};
+	var tagColors = {repetitive: this.styles["color of repetitive alignments"], unique: this.styles["color of unique alignments"]};
 
+
+	var count = 0;
 	var drawLine = function(d) {
 		var line = getLine(d);
 		if (!(bothEndsAbove(line) || bothEndsBelow(line) || bothEndsLeft(line) || bothEndsRight(line))) {
 			c.moveTo(line.start.x, line.start.y);
 			c.lineTo(line.end.x, line.end.y);
 		}
+		count++;
 	};
 
+	
 	for (var tag in tagColors) {
 		c.beginPath();
 		c.strokeStyle = tagColors[tag];
+		c.lineWidth = this.styles["alignment line thickenss"];
+
 
 		R.map(function(queryInfo) {
 			var query = queryInfo[0];
 			if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
 				R.map(drawLine, state.dataByQuery[query][tag]);
+				
 			}
 		}, state.selectedQueries);
 
 		c.stroke();
 	}
+
+	console.log("Number of alignments drawn:", count);
+	// c.beginPath();
+	// c.arc(95,50,40,0,2*Math.PI);
+	// c.fill();
+
 }
 
-function validateConfig(config) {
-	var requiredTypes = {
-		height: "number",
-		width: "number"
-	}
+DotPlot.prototype.style_schema = function() {
+	var styles = [
+		// {name: "alignment symbol", type: "selection", default:"line", options: ["line","dotted ends"]},
+		{name: "alignment line thickenss", type: "number", default: 2},
+		{name: "color of unique alignments", type: "color", default: "black"},
+		// {name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
+		{name: "color of repetitive alignments", type: "color", default: "#ff00ff"},
+		{name: "show repetitive alignments", type: "bool", default: true},
+		{name: "highlight loaded queries", type: "bool", default: true},
+		
 
-	for (var key in requiredTypes) {
-		if (config[key] === undefined) {
-			console.error(key, "is undefined in Dot's config");
-		} else if (typeof(config[key]) !== requiredTypes[key]){
-			console.error(key, "should be of type:", requiredTypes[key], "but is instead of type:", typeof(config[key]));
-		}
+		
+		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
+		// {name:"a range", type:"range", default:2},
+		// {name:"a bool", type:"bool", default:true},
+		// {name:"a selection", type:"selection", default:"B", options: ["A","B","C","D"]},
+		
+		
+	];
+
+	return styles;
+}
+
+DotPlot.prototype.reset_styles = function() {
+	var style_schema = this.style_schema();
+	this.styles = {};
+	for (var i in style_schema) {
+		this.styles[style_schema[i].name] = style_schema[i].default;
 	}
+}
+
+DotPlot.prototype.set_style = function(style,value) {
+	
+	this.styles[style] = value;
+
+	console.log(this.styles);
+
+	this.draw();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -961,7 +997,6 @@ Track.prototype.draw = function() {
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////      Dot App       //////////////////////////////////////////
@@ -973,9 +1008,21 @@ var DotApp = function(element, config) {
 
 	this.element = element;
 
-	this.plot_element = this.element.append("div");
+	var frac = 0.25;
 
-	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width});
+	this.plot_element = this.element.append("div").attr("id", "dotplot")
+		.style("height", config.height + "px")
+		.style("width", config.width*(1-frac) + "px")
+		.style("display", "inline-block");
+
+	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width*(1-frac)});
+
+	this.style_panel = this.element.append("div")
+		.attr("id","UI_container")
+		.style("width", config.width*frac + "px")
+		.style("display", "inline-block")
+		.style("vertical-align", "top")
+		.call(d3.superUI().object(this.dotplot));
 
 	this.messageCallback = function(message, sentiment) {
 		console.log(message);
