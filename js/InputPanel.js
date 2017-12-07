@@ -17,7 +17,9 @@ var InputPanel = function(opts) {
 
 	var _this = this;
 
-	_this.inputs = _this.element.html("")
+	_this.element.html("");
+	
+	_this.inputs = _this.element
 		.selectAll(".input").data(R.values(_this.spec))
 		.enter().append("div")
 			.attr("class","InputPanelItem form-group");
@@ -69,16 +71,17 @@ var setOnEnter = R.curry(function(inputPanel, d) {
 
 InputPanel.prototype.updateUI= function() {
 	var _this = this;
+
 	_this.inputs.selectAll("input[type=text]")
 		.filter(function(d) {return _this.values[d.id].inputType === "url";})
 			.property("value", function(d) {return _this.values[d.id].value});
 
 	_this.inputs.selectAll("input[type=text]")
-		.filter(function(d) {return _this.values[d.id].inputType === "File";})
+		.filter(function(d) {return _this.values[d.id].inputType !== "url";})
 			.property("value", "");
 	
 	_this.inputs.selectAll("input[type=file]")
-		.filter(function(d) {return _this.values[d.id].inputType === "url";})
+		.filter(function(d) {return _this.values[d.id].inputType !== "File";})
 		.property("value", "");
 }
 
@@ -97,13 +100,17 @@ InputPanel.prototype.readUrlParameters = function() {
 	}
 };
 
+InputPanel.prototype.clearInputs= function() {
+	for (var variable in this.values) {
+		this.set(variable, "empty", "");
+	}
+}
+
 InputPanel.prototype.set = function(variable, inputType, value) {
 	this.values[variable] = {value: value, inputType: inputType};
 	if (typeof(this.spec[variable].callback) === "function") {
 		this.spec[variable].callback(value, inputType, variable);
 	}
-
-	// console.log("set", variable, "as", inputType, "with value:", value);
 
 	this.updateUI();
 };

@@ -873,7 +873,7 @@ DotPlot.prototype.style_schema = function() {
 		{name: "alignment line thickness", type: "number", default: 2},
 		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
 		{name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
-		{name: "color of repetitive alignments", type: "color", default: "#ff00ff"},
+		{name: "color of repetitive alignments", type: "color", default: "#ef8717"},
 		{name: "show repetitive alignments", type: "bool", default: true},
 		{name: "highlight loaded queries", type: "bool", default: true},
 		

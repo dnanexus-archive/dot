@@ -17,7 +17,6 @@ function changePage(page) {
 	d3.select(VTTGlobal.currentPage+"_tab").classed("active", true);
 }
 
-
 // System for communicating messages to the user
 function showMessage(message, sentiment) {
 	

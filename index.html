@@ -11,9 +11,10 @@
 	<nav class="navbar navbar-inverse">
 	  <div class="container-fluid">
 	    <div class="navbar-header">
-	      <a class="navbar-brand" href="javascript:void(0)" onclick="changePage('#first');">Dot</a>
+	      <a class="navbar-brand" href="javascript:window.location.href=location.protocol+'//'+location.host+location.pathname">Dot</a>
 	    </div>
 	    <ul class="nav navbar-nav">
+	      <li class="page_tab" id="first_tab"><a href="javascript:void(0)" onclick="changePage('#first');">Inputs</a></li>
 	      <li class="page_tab" id="main_tab"><a href="javascript:void(0)" onclick="changePage('#main');">Visualization</a></li>
 	      <li class="page_tab" id="tutorial_tab"><a href="javascript:void(0)" onclick="changePage('#tutorial');">Tutorial</a></li>
 	      <li class="page_tab" id="about_tab"><a href="javascript:void(0)" onclick="changePage('#about');">About</a></li>
