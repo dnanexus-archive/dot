@@ -654,7 +654,8 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","verticalGrid");
 	
 	verticalLines.merge(newVerticalLines)
-		.style("stroke","#AAAAAA")
+		.style("stroke", this.styles["color of reference grid lines"])
+		.style("stroke-width", this.styles["width of reference grid lines"])
 		.attr("x1", function(d) {return d.start})
 		.attr("y1", 0)
 		.attr("x2", function(d) {return d.start})
@@ -670,7 +671,8 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","horizontalGrid");
 
 	horizontalLines.merge(newHorizontalLines)
-		.style("stroke","#AAAAAA")
+		.style("stroke", this.styles["color of query grid lines"])
+		.style("stroke-width",this.styles["width of query grid lines"])
 		.attr("x1", 0)
 		.attr("y1", function(d) {return d.start})
 		.attr("x2", this.state.layout.inner.width)
@@ -734,6 +736,7 @@ DotPlot.prototype.drawGrid = function() {
 	var queryIndex = this.state.queryIndex;
 
 	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
+	
 	var loaded = function(query) {
 		if (queryIndex[query] === undefined) {
 			return false;
@@ -839,36 +842,40 @@ DotPlot.prototype.drawAlignments = function() {
 		}
 	}
 
+	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
 	var thickness = this.styles["alignment line thickness"];
 
 	for (var tag in tagColors) {
-		
-		R.map(function(queryInfo) {
-			var query = queryInfo[0];
-			if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
-				c.beginPath();
-				c.strokeStyle = tagColors[tag].forward;
-				c.lineWidth = thickness;
-				R.compose(R.map(drawLine), R.filter(forward))(state.dataByQuery[query][tag]);
-				c.stroke();
+		if (tag === "unique" || showRepetitiveAlignments) {
+			R.map(function(queryInfo) {
+				var query = queryInfo[0];
+				if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
+					c.beginPath();
+					c.strokeStyle = tagColors[tag].forward;
+					c.lineWidth = thickness;
+					R.compose(R.map(drawLine), R.filter(forward))(state.dataByQuery[query][tag]);
+					c.stroke();
 
-				c.beginPath();
-				c.strokeStyle = tagColors[tag].reverse;
-				c.lineWidth = thickness;
-				R.compose(R.map(drawLine), R.filter(reverse))(state.dataByQuery[query][tag]);
-				c.stroke();
-			}
-		}, state.selectedQueries);
+					c.beginPath();
+					c.strokeStyle = tagColors[tag].reverse;
+					c.lineWidth = thickness;
+					R.compose(R.map(drawLine), R.filter(reverse))(state.dataByQuery[query][tag]);
+					c.stroke();
+				}
+			}, state.selectedQueries);
+		}
 	}
 
 	if (this.styles["alignment symbol"] == "dotted ends") {
 		for (var tag in tagColors) {
-			R.map(function(queryInfo) {
-				var query = queryInfo[0];
-				if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
-					R.map(drawCircles, state.dataByQuery[query][tag]);
-				}
-			}, state.selectedQueries);
+			if (tag === "unique" || showRepetitiveAlignments) {
+				R.map(function(queryInfo) {
+					var query = queryInfo[0];
+					if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
+						R.map(drawCircles, state.dataByQuery[query][tag]);
+					}
+				}, state.selectedQueries);
+			}
 		}
 	}
 
@@ -877,13 +884,25 @@ DotPlot.prototype.drawAlignments = function() {
 
 DotPlot.prototype.style_schema = function() {
 	var styles = [
-		{name: "alignment symbol", type: "selection", default:"line", options: ["line","dotted ends"]},
+		{name: "Fundamentals", type: "section"},
+		{name: "show repetitive alignments", type: "bool", default: true},
+		{name: "highlight loaded queries", type: "bool", default: true},
+
+		{name: "Alignments", type: "section"},
+		{name: "alignment symbol", type: "selection", default:"dotted ends", options: ["line","dotted ends"]},
 		{name: "alignment line thickness", type: "number", default: 2},
 		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
 		{name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
 		{name: "color of repetitive alignments", type: "color", default: "#ef8717"},
-		{name: "show repetitive alignments", type: "bool", default: true},
-		{name: "highlight loaded queries", type: "bool", default: true},
+		
+		{name: "Grid lines", type: "section"},
+		{name: "width of reference grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
+		// {name: "width of reference grid lines", type:"number", default: 0.6},
+		{name: "color of reference grid lines", type:"color", default: "#aaaaaa"},
+		{name: "width of query grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
+		// {name: "width of query grid lines", type:"number", default: 0.6},
+		{name: "color of query grid lines", type:"color", default: "#aaaaaa"},
+		
 		
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},

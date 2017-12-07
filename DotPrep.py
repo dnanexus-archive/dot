@@ -305,7 +305,8 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overvie
 
 	#  Calculate relative positions of each alignment in this cumulative length, and take the median of these for each query, then sort the queries by those scores
 	flip_by_query = {}
-	references_by_query = {} # for index
+	unique_references_by_query = {} # for index, only unique alignments
+	all_references_by_query = {} # for index, including repetitive alignments
 	relative_ref_position_by_query = [] # for ordering
 
 
@@ -327,7 +328,8 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overvie
 		sum_forward = 0
 		sum_reverse = 0
 		ref_position_scores = []
-		references_by_query[query_name] = set()
+		unique_references_by_query[query_name] = set()
+		all_references_by_query[query_name] = set()
 
 		for fields in lines:
 			tag = fields[8]
@@ -335,6 +337,7 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overvie
 			query_name = fields[7]
 			query_lengths[query_name] = int(fields[5])
 
+			all_references_by_query[query_name].add(ref)
 			# Only use unique alignments to decide contig orientation
 			if tag == "unique":
 				query_stop = int(fields[3])
@@ -345,7 +348,7 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overvie
 				ref = fields[6]
 
 				# for index:
-				references_by_query[query_name].add(ref)
+				unique_references_by_query[query_name].add(ref)
 				queries_by_reference[ref].add(query_name)
 
 				# for ordering:
@@ -402,10 +405,10 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overvie
 		f_out_index.write("%s,%d,%s\n" % (ref,ref_length,"~".join(queries_by_reference[ref])))
 
 	f_out_index.write("#query\n")
-	f_out_index.write("query,query_length,orientation,bytePosition_unique,bytePosition_repetitive,bytePosition_end,matching_refs\n")
+	f_out_index.write("query,query_length,orientation,bytePosition_unique,bytePosition_repetitive,bytePosition_end,unique_matching_refs,matching_refs\n")
 	# relative_ref_position_by_query is sorted by rel_pos
 	for query,rel_pos in relative_ref_position_by_query:
-		f_out_index.write("%s,%d,%s,%d,%d,%d,%s\n" % (query, query_lengths[query], flip_by_query[query], query_byte_positions[(query,"unique")], query_byte_positions[(query,"repetitive")] - query_byte_positions[(query,"unique")], query_byte_positions[(query,"end")] - query_byte_positions[(query,"repetitive")],"~".join(references_by_query[query])))
+		f_out_index.write("%s,%d,%s,%d,%d,%d,%s,%s\n" % (query, query_lengths[query], flip_by_query[query], query_byte_positions[(query,"unique")], query_byte_positions[(query,"repetitive")] - query_byte_positions[(query,"unique")], query_byte_positions[(query,"end")] - query_byte_positions[(query,"repetitive")], "~".join(unique_references_by_query[query]), "~".join(all_references_by_query[query])))
 
 	f_out_index.write("#overview\n")
 	f_out_index.write("ref_start,ref_end,query_start,query_end,ref,query,tag\n")
