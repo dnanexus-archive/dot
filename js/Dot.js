@@ -877,8 +877,6 @@ DotPlot.prototype.style_schema = function() {
 		{name: "show repetitive alignments", type: "bool", default: true},
 		{name: "highlight loaded queries", type: "bool", default: true},
 		
-
-		
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
 		// {name:"a bool", type:"bool", default:true},

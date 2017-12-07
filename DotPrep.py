@@ -202,8 +202,6 @@ def writeFilteredDeltaFile(filename, output_filename, unique_alignments, unique_
 	except:
 		f = open(filename, 'r')
 		header1 = f.readline()
-	
-	print(header1)
 		
 	f_out_delta.write(header1) # write the first line that we read already
 	f_out_delta.write(f.readline())
@@ -333,16 +331,18 @@ def index_for_dot(reference_lengths, fields_by_query, output_prefix, max_overvie
 
 		for fields in lines:
 			tag = fields[8]
+
+			query_name = fields[7]
+			query_lengths[query_name] = int(fields[5])
+
+			# Only use unique alignments to decide contig orientation
 			if tag == "unique":
-				# Only use unique alignments to decide contig orientation
-				query_name = fields[7]
 				query_stop = int(fields[3])
 				query_start = int(fields[2])
 				ref_start = int(fields[0])
 				ref_stop = int(fields[1])
 				alignment_length = abs(int(fields[3])-int(fields[2]))
 				ref = fields[6]
-				query_lengths[query_name] = int(fields[5])
 
 				# for index:
 				references_by_query[query_name].add(ref)
