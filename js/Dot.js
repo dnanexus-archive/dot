@@ -816,7 +816,7 @@ DotPlot.prototype.drawAlignments = function() {
 		var line = getLine(d);
 		if (!(bothEndsAbove(line) || bothEndsBelow(line) || bothEndsLeft(line) || bothEndsRight(line))) {
 			c.beginPath();
-
+			c.fillStyle = getColor(d);
 			c.arc(line.start.x, line.start.y, dotSize, 0, 2*Math.PI);
 			c.arc(line.end.x, line.end.y, dotSize, 0, 2*Math.PI);
 			c.fill();
@@ -829,6 +829,14 @@ DotPlot.prototype.drawAlignments = function() {
 
 	var reverse = function(d) {
 		return (d.query_start > d.query_end);
+	}
+
+	var getColor = function(d) {
+		if (forward(d)) {
+			return tagColors[d.tag].forward;
+		} else {
+			return tagColors[d.tag].reverse;
+		}
 	}
 
 	var thickness = this.styles["alignment line thickness"];
