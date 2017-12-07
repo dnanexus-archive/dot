@@ -797,7 +797,7 @@ DotPlot.prototype.drawAlignments = function() {
 		return (line.start.y > area[1][1] && line.end.y > area[1][1])
 	}
 
-	var tagColors = {repetitive: this.styles["color of repetitive alignments"], unique: this.styles["color of unique alignments"]};
+	var tagColors = {repetitive: {forward: this.styles["color of repetitive alignments"], reverse: this.styles["color of repetitive alignments"]}, unique: {forward: this.styles["color of unique forward alignments"], reverse: this.styles["color of unique reverse alignments"]}};
 
 
 	var count = 0;
@@ -810,37 +810,69 @@ DotPlot.prototype.drawAlignments = function() {
 		count++;
 	};
 
-	
+	var dotSize = this.styles["alignment line thickness"];
+
+	var drawCircles = function(d) {
+		var line = getLine(d);
+		if (!(bothEndsAbove(line) || bothEndsBelow(line) || bothEndsLeft(line) || bothEndsRight(line))) {
+			c.beginPath();
+
+			c.arc(line.start.x, line.start.y, dotSize, 0, 2*Math.PI);
+			c.arc(line.end.x, line.end.y, dotSize, 0, 2*Math.PI);
+			c.fill();
+		}
+	}
+
+	var forward = function(d) {
+		return (d.query_start <= d.query_end);
+	}
+
+	var reverse = function(d) {
+		return (d.query_start > d.query_end);
+	}
+
+	var thickness = this.styles["alignment line thickness"];
+
 	for (var tag in tagColors) {
-		c.beginPath();
-		c.strokeStyle = tagColors[tag];
-		c.lineWidth = this.styles["alignment line thickenss"];
-
-
+		
 		R.map(function(queryInfo) {
 			var query = queryInfo[0];
 			if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
-				R.map(drawLine, state.dataByQuery[query][tag]);
-				
+				c.beginPath();
+				c.strokeStyle = tagColors[tag].forward;
+				c.lineWidth = thickness;
+				R.compose(R.map(drawLine), R.filter(forward))(state.dataByQuery[query][tag]);
+				c.stroke();
+
+				c.beginPath();
+				c.strokeStyle = tagColors[tag].reverse;
+				c.lineWidth = thickness;
+				R.compose(R.map(drawLine), R.filter(reverse))(state.dataByQuery[query][tag]);
+				c.stroke();
 			}
 		}, state.selectedQueries);
+	}
 
-		c.stroke();
+	if (this.styles["alignment symbol"] == "dotted ends") {
+		for (var tag in tagColors) {
+			R.map(function(queryInfo) {
+				var query = queryInfo[0];
+				if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
+					R.map(drawCircles, state.dataByQuery[query][tag]);
+				}
+			}, state.selectedQueries);
+		}
 	}
 
 	console.log("Number of alignments drawn:", count);
-	// c.beginPath();
-	// c.arc(95,50,40,0,2*Math.PI);
-	// c.fill();
-
 }
 
 DotPlot.prototype.style_schema = function() {
 	var styles = [
-		// {name: "alignment symbol", type: "selection", default:"line", options: ["line","dotted ends"]},
-		{name: "alignment line thickenss", type: "number", default: 2},
-		{name: "color of unique alignments", type: "color", default: "black"},
-		// {name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
+		{name: "alignment symbol", type: "selection", default:"line", options: ["line","dotted ends"]},
+		{name: "alignment line thickness", type: "number", default: 2},
+		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
+		{name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
 		{name: "color of repetitive alignments", type: "color", default: "#ff00ff"},
 		{name: "show repetitive alignments", type: "bool", default: true},
 		{name: "highlight loaded queries", type: "bool", default: true},
