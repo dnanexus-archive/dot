@@ -109,7 +109,6 @@ function getRandomAccess(source, inputType, variable) {
 		var request = new XMLHttpRequest();
 
 		request.open('GET', source, true);
-		request.setRequestHeader("Range", "bytes=0-10000000");
 		request.responseType = "blob";
 		request.onload = function() {
 			// console.log("For", variable + ": Found file of size " + Math.round(request.response.size/1024/1024*100)/100 + "MB.")

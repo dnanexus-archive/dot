@@ -228,15 +228,16 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 			before = _this.state.dataByQuery[query]["unique"].length;
 		}
 		_this.state.dataByQuery[query]["unique"] = parseCoords(content["unique"], query, "unique");
-		console.log(query, ": Replaced overview of", before, "unique alignments with", _this.state.dataByQuery[query]["unique"].length);
-
+		var after = _this.state.dataByQuery[query]["unique"].length;
+		// console.log(query, ": Replaced overview of", before, "unique alignments with", after);
 
 		before = 0;
 		if (_this.state.dataByQuery[query]["repetitive"]) {
 			before = _this.state.dataByQuery[query]["repetitive"].length;
 		}
 		_this.state.dataByQuery[query]["repetitive"] = parseCoords(content["repetitive"], query, "repetitive");
-		console.log(query, ": Replaced overview of", before, "repetitive alignments with", _this.state.dataByQuery[query]["repetitive"].length);
+		var after = _this.state.dataByQuery[query]["repetitive"].length;
+		// console.log(query, ": Replaced overview of", before, "repetitive alignments with", after);
 
 	} else {
 		var before = 0;
@@ -244,7 +245,9 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 			before = _this.state.dataByQuery[query][tag].length; 
 		}
 		_this.state.dataByQuery[query][tag] = parseCoords(content[tag], query, tag);
-		console.log(query, ": Replaced overview of", before, tag, "alignments with", _this.state.dataByQuery[query][tag].length);
+		var after =  _this.state.dataByQuery[query][tag].length;
+
+		// console.log(query, ": Replaced overview of", before, tag, "alignments with", after);
 	}
 
 	_this.draw();
@@ -887,7 +890,7 @@ DotPlot.prototype.drawAlignments = function() {
 		}
 	}
 
-	console.log("Number of alignments drawn:", count);
+	// console.log("Number of alignments drawn:", count);
 }
 
 DotPlot.prototype.style_schema = function() {
