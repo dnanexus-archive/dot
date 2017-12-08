@@ -695,6 +695,14 @@ DotPlot.prototype.drawGrid = function() {
 	var xLabels = this.svg.select("g.innerPlot")
 		.selectAll("g.xLabels").data(boundariesX);
 
+	function displayName(d) {
+		if (Math.abs(d.end - d.start) > 5) {
+			return d.name;
+		} else {
+			return ".";
+		}
+	}
+
 	var newXLabels = xLabels.enter().append("g")
 		.attr("class","xLabels")
 
@@ -705,12 +713,12 @@ DotPlot.prototype.drawGrid = function() {
 		.style("font-size", 10)
 		.attr("transform", "rotate(-45)")
 
-	var labelHeight = this.state.layout.outer.height + 20;
+	var labelHeight = this.state.layout.outer.height + 10;
 	xLabels = xLabels.merge(newXLabels)
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 	
 	xLabels.select("text").datum(function(d) {return d})
-			.text(function(d) {return d.name})
+			.text(displayName)
 			.style("cursor", "pointer")
 			.on("click", setRef);
 
@@ -729,14 +737,14 @@ DotPlot.prototype.drawGrid = function() {
 	var yLabels = yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
-		.text(function(d) {return d.name})
+		.text(displayName)
 		.style("cursor", "pointer")
 		.on("click", setQuery);
 
 	var queryIndex = this.state.queryIndex;
 
 	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
-	
+
 	var loaded = function(query) {
 		if (queryIndex[query] === undefined) {
 			return false;
@@ -885,7 +893,7 @@ DotPlot.prototype.drawAlignments = function() {
 DotPlot.prototype.style_schema = function() {
 	var styles = [
 		{name: "Fundamentals", type: "section"},
-		{name: "show repetitive alignments", type: "bool", default: true},
+		{name: "show repetitive alignments", type: "bool", default: false},
 		{name: "highlight loaded queries", type: "bool", default: true},
 
 		{name: "Alignments", type: "section"},
