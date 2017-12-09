@@ -106,12 +106,22 @@
 
 	<script type="text/javascript">
 
+		var layout = VTTGlobal.layout;
+
+		var _app_area = d3.select('#plotting-area');
+
+		var _scales = {x: null, y: null};
+
+		/* Set up the Dot app */
+		var _dot = new DotApp(_app_area, {height: layout.svg.height, width: layout.svg.width});
+
+
 		// Define the inputs needed for this app
 		var inputSpec = {
 			// alignments: {name: "Alignments", required: true, callback: readTSVorCSV},
 			coords: {name: "Coords", required: true, callback: getRandomAccess},
 			index: {name: "Coords index", required: true, callback: readAsString},
-			annotations: {name: "Annotations", required: false, callback: readTSVorCSV},
+			annotations: {name: "Annotations", required: false, many: true, callback: readTSVorCSV},
 		};
 		// the keys input and someOtherInput become the names for those parameters you can pass in through the URL (see examples' urlSuffix), and how you refer to each file within the visualization code in app.js
 
@@ -125,6 +135,11 @@
 				name: "Gorilla aligned to Human GRCh38",
 				hover: "Gorilla aligned to Human GRCh38",
 				urlSuffix: "?coords=https://dl.dnanex.us/F/D/6XJj7bB1PV23B0KqZ8gPK4By7KKyFfZxkG3Z1Gpv/gorilla_to_GRCh38.coords&index=https://dl.dnanex.us/F/D/2FPV3xfvYY9Vz63K0P5Yk0BPQ0Q397QKfJK7p5QX/gorilla_to_GRCh38.coords.idx"
+			},
+			{
+				name: "Gorilla aligned to Human GRCh38, with human gene annotation",
+				hover: "Gorilla aligned to Human GRCh38",
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/6XJj7bB1PV23B0KqZ8gPK4By7KKyFfZxkG3Z1Gpv/gorilla_to_GRCh38.coords&index=https://dl.dnanex.us/F/D/2FPV3xfvYY9Vz63K0P5Yk0BPQ0Q397QKfJK7p5QX/gorilla_to_GRCh38.coords.idx&annotations=https://dl.dnanex.us/F/D/10f2j36y68Gjg9XkFQKfZqQGYqFVy1VFQkfXb9QB/gencode.v27.genes.bed"
 			},
 		];
 

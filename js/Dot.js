@@ -370,7 +370,10 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 
 		var sharedSeqs = R.intersection(alignmentSeqs, annotSeqs);
 		var annotSeqsNotInAlignments = R.difference(annotSeqs, alignmentSeqs);
-		if (annotSeqsNotInAlignments.length > 0) {
+		if (annotSeqsNotInAlignments.length === annotSeqs.length) {
+			console.warn("None of the annotations' sequence names match the alignments' sequence names");
+			return;
+		} else if (annotSeqsNotInAlignments.length > 0) {
 			console.warn("Some annotations are on the following sequences that are not in the alignments input:", R.join(", ", annotSeqsNotInAlignments));
 		}
 

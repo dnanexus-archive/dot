@@ -58,8 +58,14 @@ function setExamples(examples) {
 // Set up a system for reading and parsing data
 function readTSVorCSV(source, inputType, variable) {
 	VTTGlobal.inputStatus[variable] = "in progress";
-	VTTGlobal.loadedData[variable] = undefined;
-
+	if (VTTGlobal.inputSpec[variable].many) {
+		if (VTTGlobal.loadedData[variable] === undefined) {
+			VTTGlobal.loadedData[variable] = [];
+		}
+	} else {
+		VTTGlobal.loadedData[variable] = undefined;
+	}
+	
 	if (inputType === "url") {
 		Papa.parse(source, {
 			download: true,
@@ -200,7 +206,12 @@ function setInputData(data, variable) {
 	// If you need input validation to make sure the data has the right format, do it here before setting VTTGlobal.loadedData
 	// You can also apply any transformations to the data before setting VTTGlobal.loadedData
 
-	VTTGlobal.loadedData[variable] = data;
+	if (VTTGlobal.inputSpec[variable].many) {
+		VTTGlobal.loadedData[variable].push(data);
+	} else {
+		VTTGlobal.loadedData[variable] = data;
+	}
+	
 	VTTGlobal.inputStatus[variable] = "success";
 
 	// You can set some rules here to launch the visualization as soon as the required inputs are available

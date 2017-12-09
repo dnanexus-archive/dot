@@ -31,7 +31,6 @@ var InputPanel = function(opts) {
 			return d.name;
 		}
 	});
-
 	
 	_this.inputs.append("label")
 		.property("for", function(d){return d.id + "_" + "url"})
@@ -93,6 +92,7 @@ InputPanel.prototype.readUrlParameters = function() {
 
 	for (var key in vars) {
 		if (this.values[key] !== undefined) {
+			console.log(vars[key].split(","));
 			this.set(key, "url", vars[key]);
 		} else {
 			console.warn("Unrecognized URL parameter:", key);
