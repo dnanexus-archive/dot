@@ -24,17 +24,23 @@ var InputPanel = function(opts) {
 		.enter().append("div")
 			.attr("class","InputPanelItem form-group");
 
-	_this.inputs.append("h4").html(function(d) {
-		if (d.required) {
-			return "<span class='req' title='Required input'>* </span>" + d.name;
-		} else {
-			return d.name;
-		}
-	});
+	var titles = _this.inputs.append("h4");
+	
+	titles.filter(function(d) {return d.required}).append("span").attr("class","req").property("title","Required input").html("* ");
+
+	// titles.filter(function(d) {return d.many}).append("span").attr("class","many").property("title","Input can take multiple files").html("(Many) ");
+	
+	titles.append("span").html(function(d) {return d.name});
 	
 	_this.inputs.append("label")
 		.property("for", function(d){return d.id + "_" + "url"})
-		.html("Enter a URL:");
+		.html(function(d) {
+			if (d.many) {
+				return "Enter comma-separated URLs, or one URL at a time";
+			} else {
+				return "Enter a URL:";
+			}
+		});
 
 	_this.inputs.append("input")
 		.property("type","text")
@@ -44,12 +50,19 @@ var InputPanel = function(opts) {
 	
 	_this.inputs.append("label")
 		.property("for", function(d){return d.id + "_" + "file"})
-		.html("or pick a local file:");
+		.html(function(d) {
+			if (d.many) {
+				return "or pick one or more local files";
+			} else {
+				return "or pick a local file:";
+			}
+		});
 
 	_this.inputs.append("input")
 		.property("type","file")
 		.attr("class","form-control-file")
 		.attr("id", function(d){return d.id + "_" + "file"})
+		.property("multiple", function(d) {return d.many})
 		.on("change", setLocalFile(_this));
 
 	_this.inputs.append("hr");
@@ -58,7 +71,7 @@ var InputPanel = function(opts) {
 };
 
 var setLocalFile = R.curry(function(inputPanel, d) {
-	inputPanel.set(d.id, "File", this.files[0]);
+	inputPanel.set(d.id, "File", this.files);
 })
 
 var setOnEnter = R.curry(function(inputPanel, d) {
@@ -81,7 +94,7 @@ InputPanel.prototype.updateUI= function() {
 	
 	_this.inputs.selectAll("input[type=file]")
 		.filter(function(d) {return _this.values[d.id].inputType !== "File";})
-		.property("value", "");
+			.property("value", "");
 }
 
 InputPanel.prototype.readUrlParameters = function() {
@@ -92,7 +105,6 @@ InputPanel.prototype.readUrlParameters = function() {
 
 	for (var key in vars) {
 		if (this.values[key] !== undefined) {
-			console.log(vars[key].split(","));
 			this.set(key, "url", vars[key]);
 		} else {
 			console.warn("Unrecognized URL parameter:", key);
@@ -106,10 +118,28 @@ InputPanel.prototype.clearInputs= function() {
 	}
 }
 
+const startsWith = R.curry((prefix, xs) => R.equals(R.take(prefix.length, xs), prefix));
+
 InputPanel.prototype.set = function(variable, inputType, value) {
 	this.values[variable] = {value: value, inputType: inputType};
+
 	if (typeof(this.spec[variable].callback) === "function") {
-		this.spec[variable].callback(value, inputType, variable);
+		if (inputType === "url") {
+			var values = value.split(",");
+			for (var i in values) {
+				if (startsWith("http://", values[i]) || startsWith("https://", values[i])) {
+					this.spec[variable].callback(values[i], inputType, variable);
+				} else {
+					showMessage("URLs must start with 'http://' or 'https://'. '" + values[i] + "' is not a valid URL.", "danger");
+				}
+			}
+		} else if (inputType === "File") {
+			for (var i = 0; i < value.length; i++) {
+				this.spec[variable].callback(value[i], inputType, variable);
+			}
+		} else {
+			
+		}
 	}
 
 	this.updateUI();
