@@ -5,6 +5,7 @@ var VTTGlobal = {
 	blobs: {},
 	loadedData: {},
 	layout: {},
+	spinnerStack: 0,
 };
 
 // System for navigation bar links
@@ -41,6 +42,36 @@ function showMessage(message, sentiment) {
 	}
 }
 
+// Spinner for showing that something is loading
+function showSpinner(bool, variable) {
+	if (bool) {
+		console.log("Spinner +1", variable);
+		VTTGlobal.spinnerStack += 1;
+	} else {
+		console.log("Spinner -1", variable);
+		VTTGlobal.spinnerStack -= 1;
+	}
+
+	console.log("VTTGlobal.spinnerStack:", VTTGlobal.spinnerStack);
+
+	// Stack of tasks, so when multiple files are loading, we only increment and decrement
+	d3.select("#spinner").style("display", function() {
+		if (VTTGlobal.spinnerStack > 0) {
+			return "block";
+		} else {
+			return "none";
+		}
+	});
+
+	// // Simple on/off
+	// d3.select("#spinner").style("display", function() {
+	// 	if (bool) {
+	// 		return "block";
+	// 	} else {
+	// 		return "none";
+	// 	}
+	// });
+}
 
 function setExamples(examples) {
 	var baseURL = location.protocol + '//' + location.host + location.pathname;
@@ -53,11 +84,11 @@ function setExamples(examples) {
 
 }
 
-
-
 // Set up a system for reading and parsing data
 function readTSVorCSV(source, inputType, variable) {
 	VTTGlobal.inputStatus[variable] = "in progress";
+	showSpinner(true, variable);
+
 	if (VTTGlobal.inputSpec[variable].many) {
 		if (VTTGlobal.loadedData[variable] === undefined) {
 			VTTGlobal.loadedData[variable] = [];
@@ -80,6 +111,7 @@ function readTSVorCSV(source, inputType, variable) {
 			},
 			error: function(err) {
 				VTTGlobal.inputStatus[variable] = "error";
+				showSpinner(false, variable);
 				showMessage("Failed to load file from URL. Make sure this URL is correct and publicly accessible, and check the console for specific errors.", "danger");
 			}
 		});
@@ -94,6 +126,7 @@ function readTSVorCSV(source, inputType, variable) {
 			complete: function(parsed) {
 				if (parsed.errors.length > 0) {
 					VTTGlobal.inputStatus[variable] = "error";
+					showSpinner(false, variable);
 					showMessage("Errors parsing " + variable + " file: " + parsed.errors.map(function(d) {return d.message}).filter(function onlyUnique(value, index, self) { return self.indexOf(value) === index}).join(". "), "danger");
 				} else {
 					setInputData(parsed.data, variable);
@@ -104,6 +137,7 @@ function readTSVorCSV(source, inputType, variable) {
 }
 
 function saveDontRead(source, inputType, variable) {
+	showSpinner(true, variable);
 	VTTGlobal.inputStatus[variable] = "success";
 	setInputData(source, variable);
 }
@@ -111,6 +145,7 @@ function saveDontRead(source, inputType, variable) {
 function getRandomAccess(source, inputType, variable) {
 
 	if (inputType === "url") {
+		showSpinner(true, variable);
 
 		var request = new XMLHttpRequest();
 
@@ -139,6 +174,7 @@ function getRandomAccess(source, inputType, variable) {
 
 	} else if (inputType === "File") {
 		VTTGlobal.blobs[variable] = source;
+		showSpinner(true, variable);
 
 		var randomAccessFunction = function(startByte, endByte, asyncCallback) {
 			var reader = new FileReader();
@@ -154,6 +190,7 @@ function getRandomAccess(source, inputType, variable) {
 function readAsString(source, inputType, variable) {
 	VTTGlobal.inputStatus[variable] = "in progress";
 	VTTGlobal.loadedData[variable] = undefined;
+	showSpinner(true, variable);
 
 	if (inputType === "url") {
 		var request = new XMLHttpRequest();
@@ -213,7 +250,7 @@ function setInputData(data, variable) {
 	}
 	
 	VTTGlobal.inputStatus[variable] = "success";
-
+	
 	// You can set some rules here to launch the visualization as soon as the required inputs are available
 	// If you have optional inputs, you can instead call launchVisualization() in the onclick event of a button that the user clicks when they are satisfied with all their inputs
 
@@ -236,6 +273,8 @@ function setInputData(data, variable) {
 			launchVisualization();
 		}
 	}
+
+	showSpinner(false, variable);
 }
 
 
