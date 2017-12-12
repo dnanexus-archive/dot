@@ -6,9 +6,8 @@ function main(loadedData) {
 	_dot.setCoords(loadedData.coords, loadedData.index);
 
 	if (loadedData.annotations !== undefined) {
-		console.log("Found", loadedData.annotations.length, "annotation tracks");
 		for (var key in loadedData.annotations) {
-			_dot.addAnnotationData({key: "source", data: loadedData.annotations[key]});
+			_dot.addAnnotationData({key: key, data: loadedData.annotations[key]});
 		}
 	}
 }

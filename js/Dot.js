@@ -11,6 +11,8 @@ var DotPlot = function(element, config) {
 	this.config = config;
 	this.data = undefined;
 
+	this.parent = config.parent;
+
 	this.state = {
 		layout: {
 			whole: {height: config.height, width: config.width},
@@ -27,6 +29,7 @@ var DotPlot = function(element, config) {
 		annotationData: {},
 		xAnnotations: [],
 		yAnnotations: [],
+		trackGetter: [],
 	};
 
 	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
@@ -150,7 +153,7 @@ DotPlot.prototype.parseIndex = function(index) {
 	}
 
 	var splitBySquiggly = function(prop, arr) {
-		return R.map(function(d) {d[prop] = d[prop].split("~"); return d}, arr);
+		return R.map(function(d) {d[prop] = String(d[prop]).split("~"); return d}, arr);
 	};
 
 	this.state.refInfo = splitBySquiggly("matching_queries", parseCSV(refCSV));
@@ -383,20 +386,25 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 
 		plottableAnnotations = R.filter(annotMatches, dataset.data);
 
-		this.addAnnotationTrack(side, plottableAnnotations);
+		this.addAnnotationTrack({side: side, key: dataset.key, data: plottableAnnotations});
 		this.state.annotationData[dataset.key] = plottableAnnotations;
 	}
 }
 
-DotPlot.prototype.addAnnotationTrack = function(side, data) {
-	if (side == "x") {
-		this.state.xAnnotations.push(new Track({side: side, element: this.xAnnotations.append("g"), data: data, parent: this}));
-	} else if (side == "y") {
-		this.state.yAnnotations.push(new Track({side: side, element: this.yAnnotations.append("g"), data: data, parent: this}));
+DotPlot.prototype.addAnnotationTrack = function(config) {
+
+	var newTrack = undefined;
+	if (config.side == "x") {
+		newTrack = new Track({side: config.side, element: this.xAnnotations.append("g"), data: config.data, key: config.key, parent: this});
+		this.state.xAnnotations.push(newTrack);
+	} else if (config.side == "y") {
+		newTrack = new Track({side: config.side, element: this.yAnnotations.append("g"), data: config.data, key: config.key, parent: this});
+		this.state.yAnnotations.push(newTrack);
 	} else {
-		throw("in addAnnotationTrack, side must by 'x' or 'y'");
+		throw("in addAnnotationTrack, config.side must by 'x' or 'y'");
 	}
 
+	this.state.trackGetter[config.key] = newTrack;
 	this.layoutPlot();
 	this.initializeZoom()
 	this.setScaleRanges();
@@ -840,6 +848,10 @@ DotPlot.prototype.drawAlignments = function() {
 		}
 	}
 
+	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
+	var thickness = this.styles["alignment line thickness"];
+	var minAlignmentLength = this.styles["minimum alignment length"];
+
 	var forward = function(d) {
 		return (d.query_start <= d.query_end);
 	}
@@ -856,9 +868,16 @@ DotPlot.prototype.drawAlignments = function() {
 		}
 	}
 
-	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
-	var thickness = this.styles["alignment line thickness"];
+	var longEnough = function(d) {
+		return (d.ref_end-d.ref_start) >= minAlignmentLength;
+	}
 
+	function trace(data) {
+		console.log(data);
+		return data;
+	}
+
+	
 	for (var tag in tagColors) {
 		if (tag === "unique" || showRepetitiveAlignments) {
 			R.map(function(queryInfo) {
@@ -867,18 +886,20 @@ DotPlot.prototype.drawAlignments = function() {
 					c.beginPath();
 					c.strokeStyle = tagColors[tag].forward;
 					c.lineWidth = thickness;
-					R.compose(R.map(drawLine), R.filter(forward))(state.dataByQuery[query][tag]);
+					R.compose(R.map(drawLine), R.filter(forward), R.filter(longEnough))(state.dataByQuery[query][tag]);
 					c.stroke();
 
 					c.beginPath();
 					c.strokeStyle = tagColors[tag].reverse;
 					c.lineWidth = thickness;
-					R.compose(R.map(drawLine), R.filter(reverse))(state.dataByQuery[query][tag]);
+					R.compose(R.map(drawLine), R.filter(reverse), R.filter(longEnough))(state.dataByQuery[query][tag]);
 					c.stroke();
 				}
 			}, state.selectedQueries);
 		}
 	}
+
+	var filterAndDrawCircles = R.compose(R.map(drawCircles), R.filter(longEnough));
 
 	if (this.styles["alignment symbol"] == "dotted ends") {
 		for (var tag in tagColors) {
@@ -886,14 +907,14 @@ DotPlot.prototype.drawAlignments = function() {
 				R.map(function(queryInfo) {
 					var query = queryInfo[0];
 					if (state.dataByQuery[query] !== undefined && state.dataByQuery[query][tag] !== undefined) {
-						R.map(drawCircles, state.dataByQuery[query][tag]);
+						filterAndDrawCircles(state.dataByQuery[query][tag]);
 					}
 				}, state.selectedQueries);
 			}
 		}
 	}
 
-	// console.log("Number of alignments drawn:", count);
+	console.log("Number of alignments drawn:", count);
 }
 
 DotPlot.prototype.style_schema = function() {
@@ -903,6 +924,7 @@ DotPlot.prototype.style_schema = function() {
 		{name: "highlight loaded queries", type: "bool", default: true},
 
 		{name: "Alignments", type: "section"},
+		{name: "minimum alignment length", type: "number", default: 0},
 		{name: "alignment symbol", type: "selection", default:"dotted ends", options: ["line","dotted ends"]},
 		{name: "alignment line thickness", type: "number", default: 2},
 		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
@@ -916,6 +938,8 @@ DotPlot.prototype.style_schema = function() {
 		{name: "width of query grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
 		// {name: "width of query grid lines", type:"number", default: 0.6},
 		{name: "color of query grid lines", type:"color", default: "#aaaaaa"},
+
+		
 		
 		
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
@@ -946,6 +970,12 @@ DotPlot.prototype.set_style = function(style,value) {
 	this.draw();
 }
 
+DotPlot.prototype.updateTrackSelections = function(selectedKey) {
+	for (var key in this.state.trackGetter) {
+		this.state.trackGetter[key].updateSelected(key === selectedKey);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////      Track       ////////////////////////////////////////////
@@ -962,6 +992,8 @@ var Track = function(config) {
 
 	this.state = {left: 0, top: 0, height: 30, width: 30};
 	this.side = config.side;
+
+	this.key = config.key;
 
 	this.styles = {
 		shape: "rectangle"
@@ -1002,17 +1034,22 @@ Track.prototype.width = function(newWidth) {
 	}
 }
 
+
+var colorScale = d3.scaleOrdinal(d3.schemeAccent);
+
+
 Track.prototype.draw = function() {
 	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
 
+
+	var selected = this.selected;
 	// Add background or border to track
-	// this.element.select("rect.trackBackground")
-	// 	.style("fill","lightblue")
-	// 	.style("stroke","blue")
-	// 	.attr("width", this.state.width)
-	// 	.attr("height", this.state.height);
+	this.element.select("rect.trackBackground")
+		.attr("width", this.state.width)
+		.attr("height", this.state.height)
 
-
+	this.updateSelected();
+	
 	var xOrY = this.side;
 	var scale = this.parent.scales[xOrY];
 
@@ -1034,9 +1071,11 @@ Track.prototype.draw = function() {
 	var newAnnots = annots.enter().append("rect")
 		.attr("class","annot");
 
-	var colorScale = d3.scaleOrdinal(d3.schemeAccent);
-
 	annots.exit().remove();
+
+	var _track = this;
+
+	this.element.on("click", function() {_track.clicked()});
 
 	if (xOrY == "x") {
 		var rectHeight = this.height()/2;
@@ -1048,7 +1087,7 @@ Track.prototype.draw = function() {
 			.attr("y", rectY)
 			.attr("height", rectHeight)
 			.attr("fill",function(d) {return colorScale(d.seq)})
-			.on("click", function(d) {console.log(d.hover)});
+			// .on("click", function(d) {_track.clicked(); console.log(d.hover)});
 
 	} else if (xOrY == "y") {
 		var rectWidth = this.width()/2;
@@ -1060,13 +1099,57 @@ Track.prototype.draw = function() {
 			.attr("y", function(d) {return d.end})
 			.attr("height", function(d) {return d.start-d.end})
 			.attr("fill",function(d) {return colorScale(d.seq)})
-			.on("click", function(d) {console.log(d.hover)});
+			// .on("click", function(d) {_track.clicked(); console.log(d.hover)});
 
 	} else {
 		throw("side must be x or y in Track.draw");
 	}
 }
 
+Track.prototype.clicked = function() {
+	console.log("clicked: ", this.key);
+	if (this.selected) {
+		this.selected = false;
+		this.parent.parent.stylePlot();
+	} else {
+		this.selected = true;
+		this.parent.parent.styleTrack(this.key);
+	}
+}
+
+Track.prototype.updateSelected = function(selected) {
+	this.selected = selected;
+	this.element.select("rect.trackBackground")
+		.style("fill", function(){if (selected) {return "lightblue"} else {return "white"}})
+		.style("stroke", function(){if (selected) {return "blue"} else {return "white"}})
+
+}
+
+Track.prototype.style_schema = function() {
+	var styles = [
+		{name: "Annotations", type: "section"},
+		{name: "test", type: "bool", default: false},	
+	];
+
+	return styles;
+}
+
+Track.prototype.reset_styles = function() {
+	var style_schema = this.style_schema();
+	this.styles = {};
+	for (var i in style_schema) {
+		this.styles[style_schema[i].name] = style_schema[i].default;
+	}
+}
+
+Track.prototype.set_style = function(style,value) {
+	
+	this.styles[style] = value;
+
+	console.log(this.styles);
+
+	this.draw();
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1086,7 +1169,7 @@ var DotApp = function(element, config) {
 		.style("width", config.width*(1-frac) + "px")
 		.style("display", "inline-block");
 
-	this.dotplot = new DotPlot(this.plot_element, {height: config.height, width: config.width*(1-frac)});
+	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)});
 
 	this.style_panel = this.element.append("div")
 		.attr("id","UI_container")
@@ -1121,7 +1204,15 @@ DotApp.prototype.addAnnotationData = function(dataset) {
 	this.dotplot.addAnnotationData(dataset);
 }
 
+DotApp.prototype.styleTrack = function(trackKey) {
+	var track = this.dotplot.state.trackGetter[trackKey];
+	this.style_panel.call(d3.superUI().object(track));
+	this.dotplot.updateTrackSelections(trackKey);
+}
 
-
+DotApp.prototype.stylePlot = function() {
+	this.style_panel.call(d3.superUI().object(this.dotplot));
+	this.dotplot.updateTrackSelections();
+}
 
 
