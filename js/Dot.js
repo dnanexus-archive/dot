@@ -945,17 +945,17 @@ DotPlot.prototype.style_schema = function() {
 		{name: "minimum alignment length", type: "number", default: 0},
 		{name: "alignment symbol", type: "selection", default:"dotted ends", options: ["line","dotted ends"]},
 		{name: "alignment line thickness", type: "number", default: 2},
-		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
-		{name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
+		{name: "color of unique forward alignments", type: "color", default: "#0081b0"},
+		{name: "color of unique reverse alignments", type: "color", default: "#87ba2d"},
 		{name: "color of repetitive alignments", type: "color", default: "#ef8717"},
 		
 		{name: "Grid lines", type: "section"},
-		{name: "width of reference grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
+		{name: "width of reference grid lines", type:"number", default: 0.2},
 		// {name: "width of reference grid lines", type:"number", default: 0.6},
-		{name: "color of reference grid lines", type:"color", default: "#aaaaaa"},
-		{name: "width of query grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
+		{name: "color of reference grid lines", type:"color", default: "black"},
+		{name: "width of query grid lines", type:"number", default: 0},
 		// {name: "width of query grid lines", type:"number", default: 0.6},
-		{name: "color of query grid lines", type:"color", default: "#aaaaaa"},
+		{name: "color of query grid lines", type:"color", default: "black"},
 
 
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
@@ -1189,11 +1189,11 @@ var DotApp = function(element, config) {
 		.style("width", config.width*(1-frac) + "px")
 		.style("display", "inline-block");
 
-	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)});
+	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
 
 	this.style_panel = this.element.append("div")
 		.attr("id","UI_container")
-		.style("width", config.width*frac + "px")
+		.style("width", config.width * frac + "px")
 		.style("display", "inline-block")
 		.style("vertical-align", "top")
 		.call(d3.superUI().object(this.dotplot));
