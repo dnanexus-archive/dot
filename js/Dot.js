@@ -1101,7 +1101,6 @@ Track.prototype.draw = function() {
 		let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
 
 		if (xOrY == "x") {
-
 			var rectHeight = ctxTrack.height() / 2;
 			var rectY = (ctxTrack.height() - rectHeight) / 2;
 			let newAnnots = annots.enter().append("g")
@@ -1113,7 +1112,7 @@ Track.prototype.draw = function() {
 
 			annots = annots.merge(newAnnots)
 									.attr("transform",
-											(d) => `translate(${d.start+5}, ${rectY+10}) rotate(
+											(d) => `translate(${d.start}, ${rectY+10}) rotate(
 												${'strand' in d ? resolveDirection(d.strand, 90) : 90}
 											)`)
 									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
@@ -1133,11 +1132,11 @@ Track.prototype.draw = function() {
 
 			annots = annots.merge(newAnnots)
 									.attr("transform",
-											(d) => `translate(${rectX+10}, ${d.end+5}) rotate(
+											(d) => `translate(${rectX+10}, ${d.end}) rotate(
 												${'strand' in d ? resolveDirection(d.strand, 0) : 0}
 											)`)
 									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-									.attr("stroke", function(d) { console.log(resolveDirection(d.strand, 0)); return colorScale(d.seq); }) //colorScale(d.seq))
+									.attr("stroke", (d) => colorScale(d.seq))
 									.on("click", function(d) { console.log(d) });
 
 		} else {
@@ -1155,7 +1154,7 @@ Track.prototype.draw = function() {
 		let newAnnots = annots.enter().append("g")
 											.append("rect")
 											.attr("class", "annot");
-											// .attr("d", d3.symbol().type(d3.symbolTriangle));
+
 		if (xOrY == "x") {
 			var rectHeight = ctxTrack.height() / 2;
 			var rectY = (ctxTrack.height() - rectHeight) / 2;
