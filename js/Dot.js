@@ -30,6 +30,7 @@ var DotPlot = function(element, config) {
 		xAnnotations: [],
 		yAnnotations: [],
 		trackGetter: [],
+		numDrawRequests: 0,
 	};
 
 	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
@@ -164,10 +165,27 @@ DotPlot.prototype.parseIndex = function(index) {
 	this.data = parseCSV(overviewCSV);
 }
 
+
 DotPlot.prototype.draw = function() {
-	this.drawGrid();
-	this.drawAlignments();
-	this.drawAnnotationTracks();
+
+	this.state.numDrawRequests += 1;
+	var currentRequest = this.state.numDrawRequests;
+	showSpinner(true, "draw");
+	var _this = this;
+
+	// Set up a stack of draw cycles: any draw requests within 100 ms of each other get bundled so only the last one executes
+	setTimeout(function() {_this.drawRequested(currentRequest)}, 100);
+}
+
+DotPlot.prototype.drawRequested = function(numDrawRequests) {
+	if (numDrawRequests === this.state.numDrawRequests) {
+		console.log("number of draws skipped:", numDrawRequests-1)
+		this.drawGrid();
+		this.drawAlignments();
+		this.drawAnnotationTracks();
+		this.state.numDrawRequests = 0;
+		showSpinner(false, "draw", true);
+	}
 }
 
 DotPlot.prototype.setScaleRanges = function() {
@@ -927,25 +945,22 @@ DotPlot.prototype.style_schema = function() {
 		{name: "minimum alignment length", type: "number", default: 0},
 		{name: "alignment symbol", type: "selection", default:"dotted ends", options: ["line","dotted ends"]},
 		{name: "alignment line thickness", type: "number", default: 2},
-		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
-		{name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
+		{name: "color of unique forward alignments", type: "color", default: "#0081b0"},
+		{name: "color of unique reverse alignments", type: "color", default: "#87ba2d"},
 		{name: "color of repetitive alignments", type: "color", default: "#ef8717"},
 
 		{name: "Grid lines", type: "section"},
-		{name: "width of reference grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
+		{name: "width of reference grid lines", type:"number", default: 0.2},
 		// {name: "width of reference grid lines", type:"number", default: 0.6},
-		{name: "color of reference grid lines", type:"color", default: "#aaaaaa"},
-		{name: "width of query grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
+		{name: "color of reference grid lines", type:"color", default: "black"},
+		{name: "width of query grid lines", type:"number", default: 0},
 		// {name: "width of query grid lines", type:"number", default: 0.6},
-		{name: "color of query grid lines", type:"color", default: "#aaaaaa"},
-
-
-
-
+		{name: "color of query grid lines", type:"color", default: "black"},
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
 		// {name:"a bool", type:"bool", default:true},
 		// {name:"a selection", type:"selection", default:"B", options: ["A","B","C","D"]},
+
 
 
 	];
@@ -964,9 +979,6 @@ DotPlot.prototype.reset_styles = function() {
 DotPlot.prototype.set_style = function(style,value) {
 
 	this.styles[style] = value;
-
-	console.log(this.styles);
-	console.log(this);
 	this.draw();
 }
 
@@ -996,12 +1008,9 @@ var Track = function(config) {
 	this.key = config.key;
 
 	this.styles = {
-		shape: "rectangle",
 		arrowToggled: false
 	}
 	this.arrowToggled = this.styles.arrowToggled;
-	// this.currentSymbol = this.styles.shape;
-
 	this.data = config.data;
 }
 
@@ -1064,6 +1073,10 @@ Track.prototype.draw = function() {
 
 	var refOrQuery = this.parent.k[xOrY];
 
+	var annotMatches = function(d) {
+		return scale.contains(d[refOrQuery], d[refOrQuery+"_start"]) && scale.contains(d[refOrQuery], d[refOrQuery+"_end"])
+	};
+
 	function scaleAnnot(d) {
 		// Include :: Mapping -> Mapping
 		let obj = {
@@ -1075,7 +1088,8 @@ Track.prototype.draw = function() {
 		return d.strand ? R.merge(obj, { strand: d.strand} ) : obj;
 	}
 
-	var dataToPlot = R.map(scaleAnnot, this.data);
+	var dataToPlot = R.compose(R.map(scaleAnnot), R.filter(annotMatches))(this.data);
+
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
 	var _track = this;
@@ -1138,6 +1152,7 @@ Track.prototype.draw = function() {
 									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
 									.attr("stroke", (d) => colorScale(d.seq))
 									.on("click", function(d) { console.log(d) });
+
 
 		} else {
 			throw ("side must be x or y in Track.draw");
@@ -1232,9 +1247,6 @@ Track.prototype.reset_styles = function() {
 Track.prototype.set_style = function(style,value) {
 
 	this.styles[style] = value;
-
-	console.log(this.styles);
-	console.log(this);
 	this.element.selectAll('.annot').remove();
 	this.draw();
 }
@@ -1257,11 +1269,11 @@ var DotApp = function(element, config) {
 		.style("width", config.width*(1-frac) + "px")
 		.style("display", "inline-block");
 
-	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)});
+	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
 
 	this.style_panel = this.element.append("div")
 		.attr("id","UI_container")
-		.style("width", config.width*frac + "px")
+		.style("width", config.width * frac + "px")
 		.style("display", "inline-block")
 		.style("vertical-align", "top")
 		.call(d3.superUI().object(this.dotplot));

@@ -43,16 +43,16 @@ function showMessage(message, sentiment) {
 }
 
 // Spinner for showing that something is loading
-function showSpinner(bool, variable) {
-	if (bool) {
-		console.log("Spinner +1", variable);
-		VTTGlobal.spinnerStack += 1;
+function showSpinner(bool, variable, reset) {
+	if (reset) {
+		VTTGlobal.spinnerStack = 0;
 	} else {
-		console.log("Spinner -1", variable);
-		VTTGlobal.spinnerStack -= 1;
+		if (bool) {
+			VTTGlobal.spinnerStack += 1;
+		} else {
+			VTTGlobal.spinnerStack -= 1;
+		}
 	}
-
-	console.log("VTTGlobal.spinnerStack:", VTTGlobal.spinnerStack);
 
 	// Stack of tasks, so when multiple files are loading, we only increment and decrement
 	d3.select("#spinner").style("display", function() {
