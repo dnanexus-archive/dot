@@ -30,6 +30,7 @@ var DotPlot = function(element, config) {
 		xAnnotations: [],
 		yAnnotations: [],
 		trackGetter: [],
+		numDrawRequests: 0,
 	};
 
 	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
@@ -164,10 +165,27 @@ DotPlot.prototype.parseIndex = function(index) {
 	this.data = parseCSV(overviewCSV);
 }
 
+
 DotPlot.prototype.draw = function() {
-	this.drawGrid();
-	this.drawAlignments();
-	this.drawAnnotationTracks();
+
+	this.state.numDrawRequests += 1;
+	var currentRequest = this.state.numDrawRequests;
+	showSpinner(true, "draw");
+	var _this = this;
+
+	// Set up a stack of draw cycles: any draw requests within 100 ms of each other get bundled so only the last one executes
+	setTimeout(function() {_this.drawRequested(currentRequest)}, 100);
+}
+
+DotPlot.prototype.drawRequested = function(numDrawRequests) {
+	if (numDrawRequests === this.state.numDrawRequests) {
+		console.log("number of draws skipped:", numDrawRequests-1)
+		this.drawGrid();
+		this.drawAlignments();
+		this.drawAnnotationTracks();
+		this.state.numDrawRequests = 0;
+		showSpinner(false, "draw", true);
+	}
 }
 
 DotPlot.prototype.setScaleRanges = function() {
@@ -939,15 +957,12 @@ DotPlot.prototype.style_schema = function() {
 		// {name: "width of query grid lines", type:"number", default: 0.6},
 		{name: "color of query grid lines", type:"color", default: "#aaaaaa"},
 
-		
-		
-		
+
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
 		// {name:"a bool", type:"bool", default:true},
 		// {name:"a selection", type:"selection", default:"B", options: ["A","B","C","D"]},
-		
-		
+
 	];
 
 	return styles;
@@ -1055,6 +1070,10 @@ Track.prototype.draw = function() {
 
 	var refOrQuery = this.parent.k[xOrY];
 	
+	var annotMatches = function(d) {
+		return scale.contains(d[refOrQuery], d[refOrQuery+"_start"]) && scale.contains(d[refOrQuery], d[refOrQuery+"_end"])
+	};
+
 	function scaleAnnot(d) {
 		return {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
@@ -1063,8 +1082,9 @@ Track.prototype.draw = function() {
 			hover: d.name + " (" + d[refOrQuery] + ":" + d[refOrQuery + '_start'] + "-" + d[refOrQuery + '_end'] + ")",
 		};
 	}
+	
+	var dataToPlot = R.compose(R.map(scaleAnnot), R.filter(annotMatches))(this.data);
 
-	var dataToPlot = R.map(scaleAnnot, this.data);
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
 	var annots = this.element.selectAll(".annot").data(dataZoomed);
@@ -1087,7 +1107,7 @@ Track.prototype.draw = function() {
 			.attr("y", rectY)
 			.attr("height", rectHeight)
 			.attr("fill",function(d) {return colorScale(d.seq)})
-			// .on("click", function(d) {_track.clicked(); console.log(d.hover)});
+			.on("click", function(d) {console.log(d)});
 
 	} else if (xOrY == "y") {
 		var rectWidth = this.width()/2;
@@ -1099,7 +1119,7 @@ Track.prototype.draw = function() {
 			.attr("y", function(d) {return d.end})
 			.attr("height", function(d) {return d.start-d.end})
 			.attr("fill",function(d) {return colorScale(d.seq)})
-			// .on("click", function(d) {_track.clicked(); console.log(d.hover)});
+			.on("click", function(d) {console.log(d)});
 
 	} else {
 		throw("side must be x or y in Track.draw");
