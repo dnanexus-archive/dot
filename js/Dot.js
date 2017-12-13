@@ -5,7 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var DotPlot = function(element, config) {
-	
+
 	this.element = element;
 
 	this.config = config;
@@ -45,7 +45,7 @@ var DotPlot = function(element, config) {
 		.style("position", "absolute")
 		.style("top", 0)
 		.style("left", 0);
-		
+
 	this.context = this.canvas
 			.node().getContext('2d');
 	this.svg = this.element.append("svg")
@@ -75,7 +75,7 @@ DotPlot.prototype.setData = function(data) {
 	this.state.allQueries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
 
 	this.initializePlot();
-	
+
 }
 
 DotPlot.prototype.initializePlot = function(data) {
@@ -110,7 +110,7 @@ DotPlot.prototype.setCoords = function(coords, index) {
 DotPlot.prototype.parseIndex = function(index) {
 
 	var lines = index.split("\n");
-	
+
 	var refCSV = "";
 	var queryCSV = "";
 	var overviewCSV = "";
@@ -193,7 +193,7 @@ DotPlot.prototype.setScalesFromSelectedSeqs = function() {
 }
 
 function parseCoords(coords, query, tag) {
-	
+
 	var parsed = Papa.parse("ref_start,ref_end,query_start,query_end,ref\n" + coords, {header: true, dynamicTyping: true, skipEmptyLines: true});
 	if (parsed.errors.length > 0) {
 		console.log("Error parsing a chunk of the coords file");
@@ -206,7 +206,7 @@ function parseCoords(coords, query, tag) {
 
 var setAlignments = R.curry(function(_this, query, tag, data) {
 	var lines = data.split("\n");
-	
+
 	var content = {unique: "", repetitive: ""};
 	var reading = undefined;
 	for (var i in lines) {
@@ -223,7 +223,7 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 		}
 	}
 
-	
+
 
 	if (tag === "both") {
 		var before = 0;
@@ -245,7 +245,7 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 	} else {
 		var before = 0;
 		if (_this.state.dataByQuery[query][tag]) {
-			before = _this.state.dataByQuery[query][tag].length; 
+			before = _this.state.dataByQuery[query][tag].length;
 		}
 		_this.state.dataByQuery[query][tag] = parseCoords(content[tag], query, tag);
 		var after =  _this.state.dataByQuery[query][tag].length;
@@ -320,7 +320,7 @@ DotPlot.prototype.resetRefQuerySelections = function(refNames) {
 	this.state.selectedQueries = this.state.allQueries;
 
 	this.seqSelectionDidChange();
-	
+
 }
 DotPlot.prototype.selectRefs = function(refNames) {
 	var state = this.state;
@@ -358,7 +358,7 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 		var side = null;
 
 		if (R.any(R.equals(this.k.x), R.keys(dataset.data[0]))) {
-			side = "x";			
+			side = "x";
 		} else if (R.any(R.equals(this.k.y), R.keys(dataset.data[0]))) {
 			side = "y";
 		} else {
@@ -463,11 +463,11 @@ DotPlot.prototype.layoutPlot = function() {
 	}
 
 	this.state.layout.annotations = {
-		x: { 
+		x: {
 			top: (this.state.layout.inner.top + this.state.layout.inner.height),
 			left: this.state.layout.inner.left,
 		},
-		y: { 
+		y: {
 			top: (this.state.layout.inner.top),
 			left: this.state.layout.inner.left - annotationThicknessY,
 		}
@@ -525,7 +525,7 @@ DotPlot.prototype.layoutPlot = function() {
 		.style("text-anchor","middle")
 		.style("font-size", 20)
 		.text(this.k.x);
-	
+
 	// Query
 	this.svg.select("g.yTitle")
 		.attr("transform", "translate(20," + this.state.layout.inner.height/2 + ")")
@@ -543,13 +543,13 @@ DotPlot.prototype.initializeZoom = function() {
 	var brush = d3.brush()
 		.extent([[0, 0], [plot.state.layout.inner.width, plot.state.layout.inner.height]])
 		.on("end", brushended);
-	
+
 	var brushArea = this.svg.select("g.brush").call(brush);
-	
+
 	var x = plot.scales.zoom.x;
 	var y = plot.scales.zoom.y;
 
-	
+
 
 	function setZoom(s) {
 		x.domain([s[0][0], s[1][0]].map(x.invert, x));
@@ -584,7 +584,7 @@ DotPlot.prototype.initializeZoom = function() {
 			} else {
 				plot.resetRefQuerySelections();
 			}
-			
+
 		}
 	}
 }
@@ -626,7 +626,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	// Translate everything relative to the inner plotting area
 	c.setTransform(1, 0, 0, 1, 0, 0);
-	
+
 	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
 
 	var area = this.scales.zoom.area;
@@ -647,17 +647,17 @@ DotPlot.prototype.drawGrid = function() {
 	// 	c.moveTo(boundariesX[i].start,0);
 	// 	c.lineTo(boundariesX[i].start,this.state.layout.inner.height);
 	// }
-	
+
 	// // Horizontal lines for sequence boundaries along the y-axis
 	// c.font="10px Arial";
 	// c.textAlign = "right";
-	
+
 	// for (var i = 0; i < boundariesY.length; i++) {
 	// 	// Scale has already been applied inside getBoundaries()
 	// 	c.moveTo(0,boundariesY[i].start);
 	// 	c.lineTo(this.state.layout.inner.width, boundariesY[i].start);
 	// }
-	// c.stroke();	
+	// c.stroke();
 
 	//////////////////////    Grid by svg    //////////////////////
 
@@ -666,7 +666,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	var newVerticalLines = verticalLines.enter().append("line")
 		.attr("class","verticalGrid");
-	
+
 	verticalLines.merge(newVerticalLines)
 		.style("stroke", this.styles["color of reference grid lines"])
 		.style("stroke-width", this.styles["width of reference grid lines"])
@@ -721,7 +721,7 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","xLabels")
 
 	xLabels.exit().remove();
-	
+
 	newXLabels.append("text")
 		.style("text-anchor","end")
 		.style("font-size", 10)
@@ -730,7 +730,7 @@ DotPlot.prototype.drawGrid = function() {
 	var labelHeight = this.state.layout.outer.height + 10;
 	xLabels = xLabels.merge(newXLabels)
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
-	
+
 	xLabels.select("text").datum(function(d) {return d})
 			.text(displayName)
 			.style("cursor", "pointer")
@@ -780,18 +780,18 @@ DotPlot.prototype.drawGrid = function() {
 
 DotPlot.prototype.drawAlignments = function() {
 	var c = this.context;
-	
+
 	/////////////////////////////////////////    Alignments    /////////////////////////////////////////
-	
+
 	var state = this.state;
 	var scales = this.scales;
 	var x = this.k.x;
 	var y = this.k.y;
-	
+
 	// Draw lines
 	c.setTransform(1, 0, 0, 1, 0, 0);
 	c.clearRect(0, 0, this.state.layout.inner.width, this.state.layout.inner.height);
-	
+
 	var zoomX = this.scales.zoom.x;
 	var zoomY = this.scales.zoom.y;
 
@@ -877,7 +877,7 @@ DotPlot.prototype.drawAlignments = function() {
 		return data;
 	}
 
-	
+
 	for (var tag in tagColors) {
 		if (tag === "unique" || showRepetitiveAlignments) {
 			R.map(function(queryInfo) {
@@ -930,7 +930,7 @@ DotPlot.prototype.style_schema = function() {
 		{name: "color of unique forward alignments", type: "color", default: "#0000ff"},
 		{name: "color of unique reverse alignments", type: "color", default: "#ff0000"},
 		{name: "color of repetitive alignments", type: "color", default: "#ef8717"},
-		
+
 		{name: "Grid lines", type: "section"},
 		{name: "width of reference grid lines", type:"range", default: 0.2, min: 0, max: 10, step: 0.2},
 		// {name: "width of reference grid lines", type:"number", default: 0.6},
@@ -939,15 +939,15 @@ DotPlot.prototype.style_schema = function() {
 		// {name: "width of query grid lines", type:"number", default: 0.6},
 		{name: "color of query grid lines", type:"color", default: "#aaaaaa"},
 
-		
-		
-		
+
+
+
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
 		// {name:"a bool", type:"bool", default:true},
 		// {name:"a selection", type:"selection", default:"B", options: ["A","B","C","D"]},
-		
-		
+
+
 	];
 
 	return styles;
@@ -962,11 +962,11 @@ DotPlot.prototype.reset_styles = function() {
 }
 
 DotPlot.prototype.set_style = function(style,value) {
-	
+
 	this.styles[style] = value;
 
 	console.log(this.styles);
-
+	console.log(this);
 	this.draw();
 }
 
@@ -984,7 +984,7 @@ DotPlot.prototype.updateTrackSelections = function(selectedKey) {
 
 var Track = function(config) {
 	this.element = config.element;
-	
+
 	this.element.append("rect")
 		.attr("class","trackBackground");
 
@@ -996,8 +996,11 @@ var Track = function(config) {
 	this.key = config.key;
 
 	this.styles = {
-		shape: "rectangle"
+		shape: "rectangle",
+		arrowToggled: false
 	}
+	this.arrowToggled = this.styles.arrowToggled;
+	// this.currentSymbol = this.styles.shape;
 
 	this.data = config.data;
 }
@@ -1035,12 +1038,18 @@ Track.prototype.width = function(newWidth) {
 }
 
 
-var colorScale = d3.scaleOrdinal(d3.schemeAccent);
+const colorScale = d3.scaleOrdinal(d3.schemeAccent);
 
+// resolveDirection : {strand {'+', '-', other}, degree [-180,180)} -> {degree, degree-180}
+const resolveDirection = (strand, degree) =>
+		R.cond([
+			  [R.equals('+'), R.always(degree)],
+			  [R.equals('-'), R.always(degree-180)],
+			  [R.T, R.always(degree)]
+		  ])(strand);
 
 Track.prototype.draw = function() {
 	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
-
 
 	var selected = this.selected;
 	// Add background or border to track
@@ -1049,61 +1058,135 @@ Track.prototype.draw = function() {
 		.attr("height", this.state.height)
 
 	this.updateSelected();
-	
+
 	var xOrY = this.side;
 	var scale = this.parent.scales[xOrY];
 
 	var refOrQuery = this.parent.k[xOrY];
-	
+
 	function scaleAnnot(d) {
-		return {
+		// Include :: Mapping -> Mapping
+		let obj = {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
 			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
 			seq: d[refOrQuery],
 			hover: d.name + " (" + d[refOrQuery] + ":" + d[refOrQuery + '_start'] + "-" + d[refOrQuery + '_end'] + ")",
 		};
+		return d.strand ? R.merge(obj, { strand: d.strand} ) : obj;
 	}
 
 	var dataToPlot = R.map(scaleAnnot, this.data);
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
-	var annots = this.element.selectAll(".annot").data(dataZoomed);
-	var newAnnots = annots.enter().append("rect")
-		.attr("class","annot");
-
-	annots.exit().remove();
-
 	var _track = this;
 
-	this.element.on("click", function() {_track.clicked()});
-
-	if (xOrY == "x") {
-		var rectHeight = this.height()/2;
-		var rectY = (this.height() - rectHeight)/2;
-
-		annots = annots.merge(newAnnots)
-			.attr("x", function(d) {return d.start})
-			.attr("width", function(d) {return d.end-d.start})
-			.attr("y", rectY)
-			.attr("height", rectHeight)
-			.attr("fill",function(d) {return colorScale(d.seq)})
-			// .on("click", function(d) {_track.clicked(); console.log(d.hover)});
-
-	} else if (xOrY == "y") {
-		var rectWidth = this.width()/2;
-		var rectX = (this.width() - rectWidth)/2;
-
-		annots = annots.merge(newAnnots)
-			.attr("x", rectX)
-			.attr("width", rectWidth)
-			.attr("y", function(d) {return d.end})
-			.attr("height", function(d) {return d.start-d.end})
-			.attr("fill",function(d) {return colorScale(d.seq)})
-			// .on("click", function(d) {_track.clicked(); console.log(d.hover)});
-
-	} else {
-		throw("side must be x or y in Track.draw");
+	if (_track.arrowToggled != _track.get_styles()["arrowToggled"]) {
+		_track.arrowToggled = _track.get_styles()["arrowToggled"];
 	}
+
+	this.element.on("click", function() { _track.clicked() });
+
+	let symbol = _track.arrowToggled;
+
+	switch(symbol) {
+		case true:
+				drawTriangle(xOrY, dataZoomed, _track);
+				break;
+		default: // default to rect
+				drawRect(xOrY, dataZoomed, _track);
+				break;
+	}
+
+	function drawTriangle(xOrY, ctxData, ctxTrack) {
+		let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
+
+		if (xOrY == "x") {
+
+			var rectHeight = ctxTrack.height() / 2;
+			var rectY = (ctxTrack.height() - rectHeight) / 2;
+			let newAnnots = annots.enter().append("g")
+												.append("path")
+												.attr("class", "annot")
+												.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectHeight));
+
+			annots.exit().remove();
+
+			annots = annots.merge(newAnnots)
+									.attr("transform",
+											(d) => `translate(${d.start+5}, ${rectY+10}) rotate(
+												${'strand' in d ? resolveDirection(d.strand, 90) : 90}
+											)`)
+									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+									.attr("stroke", (d) => colorScale(d.seq))
+									.on("click", function(d) {console.log(d)});
+
+		} else if (xOrY == "y") {
+			let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
+
+			var rectWidth = ctxTrack.width() / 2;
+			var rectX = (ctxTrack.width() - rectWidth) / 2;
+			let newAnnots = annots.enter().append("g")
+												.append("path")
+												.attr("class", "annot")
+												.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectWidth));
+			annots.exit().remove();
+
+			annots = annots.merge(newAnnots)
+									.attr("transform",
+											(d) => `translate(${rectX+10}, ${d.end+5}) rotate(
+												${'strand' in d ? resolveDirection(d.strand, 0) : 0}
+											)`)
+									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+									.attr("stroke", function(d) { console.log(resolveDirection(d.strand, 0)); return colorScale(d.seq); }) //colorScale(d.seq))
+									.on("click", function(d) { console.log(d) });
+
+		} else {
+			throw ("side must be x or y in Track.draw");
+		}
+	}
+
+	function drawRect(xOrY, ctxData, ctxTrack) {
+		let annots = ctxTrack.element.selectAll(".annot");
+		if ("annotation" in ctxTrack.get_styles()) {
+			ctxTrack.currentSymbol = ctxTrack.get_styles()["annotations"];
+			annots.exit().remove();
+		}
+		annots = annots.data(dataZoomed);
+		let newAnnots = annots.enter().append("g")
+											.append("rect")
+											.attr("class", "annot");
+											// .attr("d", d3.symbol().type(d3.symbolTriangle));
+		if (xOrY == "x") {
+			var rectHeight = ctxTrack.height() / 2;
+			var rectY = (ctxTrack.height() - rectHeight) / 2;
+			annots = annots.merge(newAnnots)
+									.attr("x", (d) => d.start)
+									.attr("width", function(d) {return d.end-d.start})
+									.attr("y", rectY)
+									.attr("height", rectHeight)
+									.attr("fill", d => colorScale(d.seq))
+									.on("click", function(d) { console.log(d) });
+
+
+		} else if (xOrY == "y") {
+			var rectWidth = ctxTrack.width() / 2;
+			var rectX = (ctxTrack.width() - rectWidth) / 2;
+
+			annots = annots.merge(newAnnots)
+									.attr("x", rectX)
+									.attr("width", rectWidth)
+									.attr("y", d => d.end)
+									.attr("height", d => d.start - d.end)
+									.attr("fill", d => colorScale(d.seq))
+									.on("click", function(d) { console.log(d) });
+
+		} else {
+			throw ("side must be x or y in Track.draw");
+		}
+
+	}
+
+
 }
 
 Track.prototype.clicked = function() {
@@ -1119,6 +1202,7 @@ Track.prototype.clicked = function() {
 
 Track.prototype.updateSelected = function(selected) {
 	this.selected = selected;
+	// console.log(selected);
 	this.element.select("rect.trackBackground")
 		.style("fill", function(){if (selected) {return "lightblue"} else {return "white"}})
 		.style("stroke", function(){if (selected) {return "blue"} else {return "white"}})
@@ -1128,10 +1212,14 @@ Track.prototype.updateSelected = function(selected) {
 Track.prototype.style_schema = function() {
 	var styles = [
 		{name: "Annotations", type: "section"},
-		{name: "test", type: "bool", default: false},	
+		{name: "arrowToggled", type: "bool", default: false},
 	];
 
 	return styles;
+}
+
+Track.prototype.get_styles = function () {
+	return this.styles;
 }
 
 Track.prototype.reset_styles = function() {
@@ -1143,11 +1231,12 @@ Track.prototype.reset_styles = function() {
 }
 
 Track.prototype.set_style = function(style,value) {
-	
+
 	this.styles[style] = value;
 
 	console.log(this.styles);
-
+	console.log(this);
+	this.element.selectAll('.annot').remove();
 	this.draw();
 }
 
@@ -1214,5 +1303,3 @@ DotApp.prototype.stylePlot = function() {
 	this.style_panel.call(d3.superUI().object(this.dotplot));
 	this.dotplot.updateTrackSelections();
 }
-
-
