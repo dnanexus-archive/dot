@@ -998,7 +998,11 @@ var Track = function(config) {
 	this.element = config.element;
 
 	this.element.append("rect")
+		.attr("class", "editHandle")
+
+	this.element.append("rect")
 		.attr("class","trackBackground");
+
 
 	this.parent = config.parent;
 
@@ -1174,25 +1178,50 @@ Track.prototype.draw = function() {
 
 	var _track = this;
 
-	this.element.on("click", function() { _track.clicked() });
+	const handleSize = Math.min(this.state.height, this.state.width);
+
+	var editHandle = this.element.select(".editHandle")
+		.on("click", function() {_track.editClicked()});
+
+	if (xOrY === "x") {
+		editHandle
+			.attr("x", -handleSize)
+			.attr("width", handleSize)
+			.attr("height", this.state.height)
+	} else if (xOrY === "y") {
+		editHandle
+			.attr("y", +handleSize)
+			.attr("width", this.state.width)
+			.attr("height", handleSize)
+	}
+
+	function mouseover() {
+
+	}
+
+	function mouseout() {
+
+	}
+
+	this.element.on("mouseover", mouseover);
+	this.element.on("mouseout", mouseout);
 
 	let symbol = _track.get_styles()["annotation representation"];
 
 	switch(symbol) {
 		case "arrow":
-				drawTriangle(xOrY, dataZoomed, _track);
-				break;
+			drawTriangle(xOrY, dataZoomed, _track);
+			break;
 		case "strip":
-				drawRect(xOrY, dataZoomed, _track);
-				break;
+			drawRect(xOrY, dataZoomed, _track);
+			break;
 		default: // default to rect
-				drawRect(xOrY, dataZoomed, _track);
-				break;
+			drawRect(xOrY, dataZoomed, _track);
+			break;
 	}
-
 }
 
-Track.prototype.clicked = function() {
+Track.prototype.editClicked = function() {
 	console.log("clicked: ", this.key);
 	if (this.selected) {
 		this.selected = false;
