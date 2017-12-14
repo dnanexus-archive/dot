@@ -1047,96 +1047,90 @@ const colorScale = d3.scaleOrdinal(d3.schemeAccent);
 
 // resolveDirection : {strand {'+', '-', other}, degree [-180,180)} -> {degree, degree-180}
 const resolveDirection = (strand, degree) =>
-		R.cond([
-			  [R.equals('+'), R.always(degree)],
-			  [R.equals('-'), R.always(degree-180)],
-			  [R.T, R.always(degree)]
-		  ])(strand);
+	R.cond([
+		  [R.equals('+'), R.always(degree)],
+		  [R.equals('-'), R.always(degree-180)],
+		  [R.T, R.always(degree)]
+	  ])(strand);
 
 function drawTriangle(xOrY, ctxData, ctxTrack) {
 	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
 
-	if (xOrY == "x") {
-		var rectHeight = ctxTrack.height() / 2;
-		var rectY = (ctxTrack.height() - rectHeight) / 2;
-		let newAnnots = annots.enter().append("g")
-											.append("path")
-											.attr("class", "annot")
-											.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectHeight))
-										
+	let newAnnots = annots.enter().append("g")
+		.append("path")
+		.attr("class", "annot");
 
-		annots.exit().remove();
+	annots.exit().remove();
+
+
+	if (xOrY == "x") {
+		var size = ctxTrack.height() / 2;
+		var yPos = (ctxTrack.height() - size) / 2;
 
 		annots = annots.merge(newAnnots)
-								.attr("transform",
-										(d) => `translate(${d.start}, ${rectY+10}) rotate(
-											${'strand' in d ? resolveDirection(d.strand, 90) : 90}
-										)`)
-								.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-								.attr("stroke", (d) => colorScale(d.seq))
-								.on("click", function(d) {console.log(d)});
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(size))
+			.attr("transform",
+				(d) => `translate(${d.start}, ${yPos+10}) rotate(
+					${'strand' in d ? resolveDirection(d.strand, 90) : 90}
+				)`)
 
 	} else if (xOrY == "y") {
-		let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
-
-		var rectWidth = ctxTrack.width() / 2;
-		var rectX = (ctxTrack.width() - rectWidth) / 2;
-		let newAnnots = annots.enter().append("g")
-											.append("path")
-											.attr("class", "annot")
-											.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectWidth));
-		annots.exit().remove();
-
+		var size = ctxTrack.width() / 2;
+		var xPos = (ctxTrack.width() - size) / 2;
+		
 		annots = annots.merge(newAnnots)
-								.attr("transform",
-										(d) => `translate(${rectX+10}, ${d.end}) rotate(
-											${'strand' in d ? resolveDirection(d.strand, 0) : 0}
-										)`)
-								.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-								.attr("stroke", (d) => colorScale(d.seq))
-								.on("click", function(d) { console.log(d) });
-
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(size))
+			.attr("transform",
+				(d) => `translate(${xPos+10}, ${d.end}) rotate(
+					${'strand' in d ? resolveDirection(d.strand, 0) : 0}
+				)`)
 
 	} else {
 		throw ("side must be x or y in Track.draw");
 	}
+
+	annots
+		.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+		.attr("stroke", (d) => colorScale(d.seq))
+		.on("click", function(d) {console.log(d)});
 }
 
 function drawRect(xOrY, ctxData, ctxTrack) {
-	let annots = ctxTrack.element.selectAll(".annot");
+	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
 
-	annots = annots.data(ctxData);
+
 	let newAnnots = annots.enter().append("g")
-										.append("rect")
-										.attr("class", "annot");
+		.append("rect")
+		.attr("class", "annot");
+
+	annots.exit().remove();
 
 	if (xOrY == "x") {
 		var rectHeight = ctxTrack.height() / 2;
 		var rectY = (ctxTrack.height() - rectHeight) / 2;
 		annots = annots.merge(newAnnots)
-								.attr("x", (d) => d.start)
-								.attr("width", function(d) {return d.end-d.start})
-								.attr("y", rectY)
-								.attr("height", rectHeight)
-								.attr("fill", d => colorScale(d.seq))
-								.on("click", function(d) { console.log(d) });
-
+			.attr("x", (d) => d.start)
+			.attr("width", function(d) {return d.end-d.start})
+			.attr("y", rectY)
+			.attr("height", rectHeight);
 
 	} else if (xOrY == "y") {
 		var rectWidth = ctxTrack.width() / 2;
 		var rectX = (ctxTrack.width() - rectWidth) / 2;
 
 		annots = annots.merge(newAnnots)
-								.attr("x", rectX)
-								.attr("width", rectWidth)
-								.attr("y", d => d.end)
-								.attr("height", d => d.start - d.end)
-								.attr("fill", d => colorScale(d.seq))
-								.on("click", function(d) { console.log(d) });
+			.attr("x", rectX)
+			.attr("width", rectWidth)
+			.attr("y", d => d.end)
+			.attr("height", d => d.start - d.end);
 
 	} else {
 		throw ("side must be x or y in Track.draw");
 	}
+
+	annots
+		.attr("fill", d => colorScale(d.seq))
+		.on("click", function(d) { console.log(d) });
 
 }
 
@@ -1173,6 +1167,10 @@ Track.prototype.draw = function() {
 	var dataToPlot = R.compose(R.map(scaleAnnot), R.filter(annotMatches))(this.data);
 
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
+
+	if (xOrY == "x") {
+		console.log(dataZoomed);
+	}
 
 	var _track = this;
 
