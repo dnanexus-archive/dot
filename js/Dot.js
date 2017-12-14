@@ -1062,9 +1062,8 @@ function drawTriangle(xOrY, ctxData, ctxTrack) {
 		let newAnnots = annots.enter().append("g")
 											.append("path")
 											.attr("class", "annot")
-											.attr("d", (d) => {
-												return d3.symbol().type(d3.symbolTriangle).size(rectHeight));
-											}
+											.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectHeight))
+										
 
 		annots.exit().remove();
 
