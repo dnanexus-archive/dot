@@ -1006,12 +1006,8 @@ var Track = function(config) {
 	this.side = config.side;
 
 	this.key = config.key;
-
-	this.styles = {
-		arrowToggled: false
-	}
-	this.arrowToggled = this.styles.arrowToggled;
 	this.data = config.data;
+	this.reset_styles();
 }
 
 Track.prototype.top = function(newTop) {
@@ -1057,6 +1053,94 @@ const resolveDirection = (strand, degree) =>
 			  [R.T, R.always(degree)]
 		  ])(strand);
 
+function drawTriangle(xOrY, ctxData, ctxTrack) {
+	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
+
+	if (xOrY == "x") {
+		var rectHeight = ctxTrack.height() / 2;
+		var rectY = (ctxTrack.height() - rectHeight) / 2;
+		let newAnnots = annots.enter().append("g")
+											.append("path")
+											.attr("class", "annot")
+											.attr("d", (d) => {
+												return d3.symbol().type(d3.symbolTriangle).size(rectHeight));
+											}
+
+		annots.exit().remove();
+
+		annots = annots.merge(newAnnots)
+								.attr("transform",
+										(d) => `translate(${d.start}, ${rectY+10}) rotate(
+											${'strand' in d ? resolveDirection(d.strand, 90) : 90}
+										)`)
+								.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+								.attr("stroke", (d) => colorScale(d.seq))
+								.on("click", function(d) {console.log(d)});
+
+	} else if (xOrY == "y") {
+		let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
+
+		var rectWidth = ctxTrack.width() / 2;
+		var rectX = (ctxTrack.width() - rectWidth) / 2;
+		let newAnnots = annots.enter().append("g")
+											.append("path")
+											.attr("class", "annot")
+											.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectWidth));
+		annots.exit().remove();
+
+		annots = annots.merge(newAnnots)
+								.attr("transform",
+										(d) => `translate(${rectX+10}, ${d.end}) rotate(
+											${'strand' in d ? resolveDirection(d.strand, 0) : 0}
+										)`)
+								.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+								.attr("stroke", (d) => colorScale(d.seq))
+								.on("click", function(d) { console.log(d) });
+
+
+	} else {
+		throw ("side must be x or y in Track.draw");
+	}
+}
+
+function drawRect(xOrY, ctxData, ctxTrack) {
+	let annots = ctxTrack.element.selectAll(".annot");
+
+	annots = annots.data(ctxData);
+	let newAnnots = annots.enter().append("g")
+										.append("rect")
+										.attr("class", "annot");
+
+	if (xOrY == "x") {
+		var rectHeight = ctxTrack.height() / 2;
+		var rectY = (ctxTrack.height() - rectHeight) / 2;
+		annots = annots.merge(newAnnots)
+								.attr("x", (d) => d.start)
+								.attr("width", function(d) {return d.end-d.start})
+								.attr("y", rectY)
+								.attr("height", rectHeight)
+								.attr("fill", d => colorScale(d.seq))
+								.on("click", function(d) { console.log(d) });
+
+
+	} else if (xOrY == "y") {
+		var rectWidth = ctxTrack.width() / 2;
+		var rectX = (ctxTrack.width() - rectWidth) / 2;
+
+		annots = annots.merge(newAnnots)
+								.attr("x", rectX)
+								.attr("width", rectWidth)
+								.attr("y", d => d.end)
+								.attr("height", d => d.start - d.end)
+								.attr("fill", d => colorScale(d.seq))
+								.on("click", function(d) { console.log(d) });
+
+	} else {
+		throw ("side must be x or y in Track.draw");
+	}
+
+}
+
 Track.prototype.draw = function() {
 	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
 
@@ -1078,7 +1162,6 @@ Track.prototype.draw = function() {
 	};
 
 	function scaleAnnot(d) {
-		// Include :: Mapping -> Mapping
 		let obj = {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
 			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
@@ -1094,112 +1177,21 @@ Track.prototype.draw = function() {
 
 	var _track = this;
 
-	if (_track.arrowToggled != _track.get_styles()["arrowToggled"]) {
-		_track.arrowToggled = _track.get_styles()["arrowToggled"];
-	}
-
 	this.element.on("click", function() { _track.clicked() });
 
-	let symbol = _track.arrowToggled;
+	let symbol = _track.get_styles()["annotation representation"];
 
 	switch(symbol) {
-		case true:
+		case "arrow":
 				drawTriangle(xOrY, dataZoomed, _track);
+				break;
+		case "strip":
+				drawRect(xOrY, dataZoomed, _track);
 				break;
 		default: // default to rect
 				drawRect(xOrY, dataZoomed, _track);
 				break;
 	}
-
-	function drawTriangle(xOrY, ctxData, ctxTrack) {
-		let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
-
-		if (xOrY == "x") {
-			var rectHeight = ctxTrack.height() / 2;
-			var rectY = (ctxTrack.height() - rectHeight) / 2;
-			let newAnnots = annots.enter().append("g")
-												.append("path")
-												.attr("class", "annot")
-												.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectHeight));
-
-			annots.exit().remove();
-
-			annots = annots.merge(newAnnots)
-									.attr("transform",
-											(d) => `translate(${d.start}, ${rectY+10}) rotate(
-												${'strand' in d ? resolveDirection(d.strand, 90) : 90}
-											)`)
-									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-									.attr("stroke", (d) => colorScale(d.seq))
-									.on("click", function(d) {console.log(d)});
-
-		} else if (xOrY == "y") {
-			let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
-
-			var rectWidth = ctxTrack.width() / 2;
-			var rectX = (ctxTrack.width() - rectWidth) / 2;
-			let newAnnots = annots.enter().append("g")
-												.append("path")
-												.attr("class", "annot")
-												.attr("d", d3.symbol().type(d3.symbolTriangle).size(rectWidth));
-			annots.exit().remove();
-
-			annots = annots.merge(newAnnots)
-									.attr("transform",
-											(d) => `translate(${rectX+10}, ${d.end}) rotate(
-												${'strand' in d ? resolveDirection(d.strand, 0) : 0}
-											)`)
-									.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-									.attr("stroke", (d) => colorScale(d.seq))
-									.on("click", function(d) { console.log(d) });
-
-
-		} else {
-			throw ("side must be x or y in Track.draw");
-		}
-	}
-
-	function drawRect(xOrY, ctxData, ctxTrack) {
-		let annots = ctxTrack.element.selectAll(".annot");
-		if ("annotation" in ctxTrack.get_styles()) {
-			ctxTrack.currentSymbol = ctxTrack.get_styles()["annotations"];
-			annots.exit().remove();
-		}
-		annots = annots.data(dataZoomed);
-		let newAnnots = annots.enter().append("g")
-											.append("rect")
-											.attr("class", "annot");
-
-		if (xOrY == "x") {
-			var rectHeight = ctxTrack.height() / 2;
-			var rectY = (ctxTrack.height() - rectHeight) / 2;
-			annots = annots.merge(newAnnots)
-									.attr("x", (d) => d.start)
-									.attr("width", function(d) {return d.end-d.start})
-									.attr("y", rectY)
-									.attr("height", rectHeight)
-									.attr("fill", d => colorScale(d.seq))
-									.on("click", function(d) { console.log(d) });
-
-
-		} else if (xOrY == "y") {
-			var rectWidth = ctxTrack.width() / 2;
-			var rectX = (ctxTrack.width() - rectWidth) / 2;
-
-			annots = annots.merge(newAnnots)
-									.attr("x", rectX)
-									.attr("width", rectWidth)
-									.attr("y", d => d.end)
-									.attr("height", d => d.start - d.end)
-									.attr("fill", d => colorScale(d.seq))
-									.on("click", function(d) { console.log(d) });
-
-		} else {
-			throw ("side must be x or y in Track.draw");
-		}
-
-	}
-
 
 }
 
@@ -1216,7 +1208,6 @@ Track.prototype.clicked = function() {
 
 Track.prototype.updateSelected = function(selected) {
 	this.selected = selected;
-	// console.log(selected);
 	this.element.select("rect.trackBackground")
 		.style("fill", function(){if (selected) {return "lightblue"} else {return "white"}})
 		.style("stroke", function(){if (selected) {return "blue"} else {return "white"}})
@@ -1226,7 +1217,8 @@ Track.prototype.updateSelected = function(selected) {
 Track.prototype.style_schema = function() {
 	var styles = [
 		{name: "Annotations", type: "section"},
-		{name: "arrowToggled", type: "bool", default: false},
+		{name: "annotation representation", type: "selection", default:"strip", options: ["strip","arrow"]},
+
 	];
 
 	return styles;
