@@ -997,12 +997,7 @@ DotPlot.prototype.updateTrackSelections = function(selectedKey) {
 var Track = function(config) {
 	this.element = config.element;
 
-	this.element.append("rect")
-		.attr("class", "editHandle")
-
-	this.element.append("rect")
-		.attr("class","trackBackground");
-
+	this.element.attr("class", "Track");
 
 	this.parent = config.parent;
 
@@ -1012,7 +1007,33 @@ var Track = function(config) {
 	this.key = config.key;
 	this.data = config.data;
 	this.reset_styles();
+
+
+	// Create handle for editing the track
+	this.editHandle = this.element.append("g")
+		.style("z-index", 100000)
+		.attr("class", "editHandle")
+		.style('visibility', 'hidden')
+		.style("cursor", "pointer");
+
+	this.editHandle.append("rect")
+		.style("fill","lightblue");
+
+	this.editHandle.append("text")
+		.style("font-family", "FontAwesome")
+		.style("dominant-baseline","middle")
+		.style("text-anchor","middle")
+		.text('\uf040');
+
+	this.editHandle.append("path");
+
+
+	// Create background
+	this.element.append("rect")
+		.attr("class","trackBackground");
 }
+
+
 
 Track.prototype.top = function(newTop) {
 	if (newTop === undefined) {
@@ -1047,7 +1068,7 @@ Track.prototype.width = function(newWidth) {
 }
 
 
-const colorScale = d3.scaleOrdinal(d3.schemeAccent);
+var colorScale = d3.scaleOrdinal(d3.schemeAccent);
 
 // resolveDirection : {strand {'+', '-', other}, degree [-180,180)} -> {degree, degree-180}
 const resolveDirection = (strand, degree) =>
@@ -1057,98 +1078,57 @@ const resolveDirection = (strand, degree) =>
 		  [R.T, R.always(degree)]
 	  ])(strand);
 
-function drawTriangle(xOrY, ctxData, ctxTrack) {
-	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
+Track.prototype.drawEditHandle = function() {
+	var _track = this;
+	var xOrY = this.side;
 
-	let newAnnots = annots.enter().append("g")
-		.append("path")
-		.attr("class", "annot");
+	const handleSize = Math.min(this.state.height, this.state.width);
 
-	annots.exit().remove();
+	var editHandle = this.editHandle;
+	
+	editHandle.on("click", function() {_track.editClicked()});
 
+	if (xOrY === "x") {
+		editHandle
+			.attr("transform",`translate(${-handleSize},0)`);
 
-	if (xOrY == "x") {
-		var size = ctxTrack.height() / 2;
-		var yPos = (ctxTrack.height() - size) / 2;
+		editHandle.selectAll("path")
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(20))
+			.attr("transform", `rotate(90) translate(${handleSize/2}, ${-handleSize+5})`);
 
-		annots = annots.merge(newAnnots)
-			.attr("d", d3.symbol().type(d3.symbolTriangle).size(size))
-			.attr("transform",
-				(d) => `translate(${d.start}, ${yPos+10}) rotate(
-					${'strand' in d ? resolveDirection(d.strand, 90) : 90}
-				)`)
+	} else if (xOrY === "y") {
+		editHandle
+			.attr("transform",`translate(0, ${this.state.height})`);
 
-	} else if (xOrY == "y") {
-		var size = ctxTrack.width() / 2;
-		var xPos = (ctxTrack.width() - size) / 2;
-		
-		annots = annots.merge(newAnnots)
-			.attr("d", d3.symbol().type(d3.symbolTriangle).size(size))
-			.attr("transform",
-				(d) => `translate(${xPos+10}, ${d.end}) rotate(
-					${'strand' in d ? resolveDirection(d.strand, 0) : 0}
-				)`)
-
-	} else {
-		throw ("side must be x or y in Track.draw");
+		editHandle.selectAll("path")
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(20))
+			.attr("transform", `translate(${handleSize/2}, 5)`);
 	}
 
-	annots
-		.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-		.attr("stroke", (d) => colorScale(d.seq))
-		.on("click", function(d) {console.log(d)});
-}
+	editHandle.selectAll("rect")
+		.style("width", handleSize)
+		.style("height", handleSize)
 
-function drawRect(xOrY, ctxData, ctxTrack) {
-	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
+	editHandle.selectAll("text")
+		.attr("x", (+handleSize/2))
+		.attr("y", (handleSize/2));
 
-
-	let newAnnots = annots.enter().append("g")
-		.append("rect")
-		.attr("class", "annot");
-
-	annots.exit().remove();
-
-	if (xOrY == "x") {
-		var rectHeight = ctxTrack.height() / 2;
-		var rectY = (ctxTrack.height() - rectHeight) / 2;
-		annots = annots.merge(newAnnots)
-			.attr("x", (d) => d.start)
-			.attr("width", function(d) {return d.end-d.start})
-			.attr("y", rectY)
-			.attr("height", rectHeight);
-
-	} else if (xOrY == "y") {
-		var rectWidth = ctxTrack.width() / 2;
-		var rectX = (ctxTrack.width() - rectWidth) / 2;
-
-		annots = annots.merge(newAnnots)
-			.attr("x", rectX)
-			.attr("width", rectWidth)
-			.attr("y", d => d.end)
-			.attr("height", d => d.start - d.end);
-
-	} else {
-		throw ("side must be x or y in Track.draw");
+	function mouseover() {
+		editHandle.style("visibility","visible");
 	}
 
-	annots
-		.attr("fill", d => colorScale(d.seq))
-		.on("click", function(d) { console.log(d) });
+	function mouseout() {
+		if (!_track.selected) {
+			editHandle.style("visibility","hidden");
+		}
+	}
+
+	this.element.on("mouseover", mouseover);
+	this.element.on("mouseout", mouseout);
 
 }
 
-Track.prototype.draw = function() {
-	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
-
-	var selected = this.selected;
-	// Add background or border to track
-	this.element.select("rect.trackBackground")
-		.attr("width", this.state.width)
-		.attr("height", this.state.height)
-
-	this.updateSelected();
-
+Track.prototype.drawAnnotationSymbols = function() {
 	var xOrY = this.side;
 	var scale = this.parent.scales[xOrY];
 
@@ -1163,6 +1143,7 @@ Track.prototype.draw = function() {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
 			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
 			seq: d[refOrQuery],
+			name: d.name,
 			hover: d.name + " (" + d[refOrQuery] + ":" + d[refOrQuery + '_start'] + "-" + d[refOrQuery + '_end'] + ")",
 		};
 		return d.strand ? R.merge(obj, { strand: d.strand} ) : obj;
@@ -1172,57 +1153,133 @@ Track.prototype.draw = function() {
 
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
-	if (xOrY == "x") {
-		console.log(dataZoomed);
-	}
-
 	var _track = this;
 
-	const handleSize = Math.min(this.state.height, this.state.width);
 
-	var editHandle = this.element.select(".editHandle")
-		.on("click", function() {_track.editClicked()});
 
-	if (xOrY === "x") {
-		editHandle
-			.attr("x", -handleSize)
-			.attr("width", handleSize)
-			.attr("height", this.state.height)
-	} else if (xOrY === "y") {
-		editHandle
-			.attr("y", +handleSize)
-			.attr("width", this.state.width)
-			.attr("height", handleSize)
+	let annots = _track.element.selectAll(".annot").data(dataZoomed);
+
+
+	let newAnnots = annots.enter().append("g").attr("class", "annot");
+	newAnnots.append("rect");
+	newAnnots.append("path");
+	newAnnots.append("text");
+
+	
+	annots.exit().remove();
+
+	annots = annots.merge(newAnnots);
+
+	annots.on("click", function(d) { console.log(d) });
+
+	var trackThickness = xOrY === "x" ? _track.height() : _track.width();
+
+	var annotThickness = trackThickness / 2;
+	var position = (trackThickness - annotThickness) / 2;
+
+	if (xOrY == "x") {
+		annots.attr("transform", d => `translate(${d.start}, ${position})`);
+	} else if (xOrY == "y") {
+		annots.attr("transform", d => `translate(${position}, ${d.end})`);
+	} else {
+		throw ("side must be x or y in Track.draw");
 	}
 
-	function mouseover() {
+	if (this.styles["show rectangles"]) {
+		annots.select("rect")
+			.style("visibility", "visible")
+			.attr("fill", d => colorScale(d.seq));
 
+		if (xOrY == "x") {
+			annots.select("rect")
+				.attr("width", function(d) {return d.end-d.start})
+				.attr("height", annotThickness);
+		} else if (xOrY == "y") {
+			annots.select("rect")
+				.attr("width", annotThickness)
+				.attr("height", d => d.start - d.end);
+		}
+	} else {
+		annots.select("rect")
+			.style("visibility", "hidden")
 	}
 
-	function mouseout() {
+	if (this.styles["show arrows based on strands"]) {
+		annots.select("path")
+			.style("visibility", "visible")
+			.attr("fill", d => colorScale(d.seq))
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(annotThickness))
+			// .attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+			.attr("stroke", (d) => colorScale(d.seq))
+			.on("click", function(d) {console.log(d)});
 
+			if (xOrY == "x") {
+				annots.select("path")
+					.attr("transform",
+						(d) => `translate(0, ${(annotThickness/2)}) rotate(${'strand' in d ? resolveDirection(d.strand, 90) : 90})`);
+			} else if (xOrY == "y") {
+				annots.select("path")
+					.attr("transform", (d) => `translate(${(annotThickness/2)}, 0) rotate(${'strand' in d ? resolveDirection(d.strand, 0) : 0})`);
+			}
+	}  else {
+		annots.select("path")
+			.style("visibility", "hidden")
 	}
 
-	this.element.on("mouseover", mouseover);
-	this.element.on("mouseout", mouseout);
+	if (this.styles["show names"]) {
+		annots.select("text")
+			.style("visibility", "visible")
+			.attr("fill", d => colorScale(d.seq))
+			.on("click", function(d) { console.log(d) })
+			.style("dominant-baseline","middle")
+			.style("text-anchor","middle")
+			.text(d => d.name)
 
-	let symbol = _track.get_styles()["annotation representation"];
-
-	switch(symbol) {
-		case "arrow":
-			drawTriangle(xOrY, dataZoomed, _track);
-			break;
-		case "strip":
-			drawRect(xOrY, dataZoomed, _track);
-			break;
-		default: // default to rect
-			drawRect(xOrY, dataZoomed, _track);
-			break;
+			if (xOrY == "x") {
+				annots.select("text")
+					.attr("width", function(d) {return d.end-d.start})
+					.attr("height", annotThickness);
+			} else if (xOrY == "y") {
+				annots.select("text")
+					.attr("width", annotThickness)
+					.attr("height", d => d.start - d.end);
+			}
+	}  else {
+		annots.select("text")
+			.style("visibility", "hidden")
 	}
+
+		
+	// if (this.styles["show rectangles"]) {
+	// 	drawRect(xOrY, dataZoomed, _track);
+	// }
+
+	// if (this.styles["show names"]) {
+	// 	drawText(xOrY, dataZoomed, _track);
+	// }
+
+	// if (this.styles["show arrows based on strands"]) {
+	// 	drawTriangle(xOrY, dataZoomed, _track);
+	// }
+}
+
+Track.prototype.draw = function() {
+	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
+
+	var selected = this.selected;
+	// Add background or border to track
+	this.element.select("rect.trackBackground")
+		.attr("width", this.state.width)
+		.attr("height", this.state.height)
+
+	this.updateSelected();
+
+	this.drawEditHandle();
+
+	this.drawAnnotationSymbols();
 }
 
 Track.prototype.editClicked = function() {
-	console.log("clicked: ", this.key);
 	if (this.selected) {
 		this.selected = false;
 		this.parent.parent.stylePlot();
@@ -1235,7 +1292,7 @@ Track.prototype.editClicked = function() {
 Track.prototype.updateSelected = function(selected) {
 	this.selected = selected;
 	this.element.select("rect.trackBackground")
-		.style("fill", function(){if (selected) {return "lightblue"} else {return "white"}})
+		.style("fill", function(){if (selected) {return "white"} else {return "white"}})
 		.style("stroke", function(){if (selected) {return "blue"} else {return "white"}})
 
 }
@@ -1243,8 +1300,9 @@ Track.prototype.updateSelected = function(selected) {
 Track.prototype.style_schema = function() {
 	var styles = [
 		{name: "Annotations", type: "section"},
-		{name: "annotation representation", type: "selection", default:"strip", options: ["strip","arrow"]},
-
+		{name: "show rectangles", type: "bool", default: true},
+		{name: "show names", type: "bool", default: false},
+		{name: "show arrows based on strands", type: "bool", default: false},
 	];
 
 	return styles;
