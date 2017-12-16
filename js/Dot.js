@@ -392,7 +392,7 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 		var sharedSeqs = R.intersection(alignmentSeqs, annotSeqs);
 		var annotSeqsNotInAlignments = R.difference(annotSeqs, alignmentSeqs);
 		if (annotSeqsNotInAlignments.length === annotSeqs.length) {
-			console.warn("None of the annotations' sequence names match the alignments' sequence names");
+			showMessage("None of the annotations' sequence names match the alignments' sequence names", "danger");
 			return;
 		} else if (annotSeqsNotInAlignments.length > 0) {
 			console.warn("Some annotations are on the following sequences that are not in the alignments input:", R.join(", ", annotSeqsNotInAlignments));
@@ -1067,16 +1067,7 @@ Track.prototype.width = function(newWidth) {
 	}
 }
 
-
 var colorScale = d3.scaleOrdinal(d3.schemeAccent);
-
-// resolveDirection : {strand {'+', '-', other}, degree [-180,180)} -> {degree, degree-180}
-const resolveDirection = (strand, degree) =>
-	R.cond([
-		  [R.equals('+'), R.always(degree)],
-		  [R.equals('-'), R.always(degree-180)],
-		  [R.T, R.always(degree)]
-	  ])(strand);
 
 Track.prototype.drawEditHandle = function() {
 	var _track = this;
@@ -1128,6 +1119,64 @@ Track.prototype.drawEditHandle = function() {
 
 }
 
+var midArrowPathGenerator = R.curry(function(arrowSize, d) {
+	var arrow = -1*arrowSize,
+		x1 = 0,
+		x2 = d.end-d.start,
+		y = 0,
+		direction = Number(d.strand=="+")*2-1;
+	var xmid = (x1 + x2)/2;
+
+	return (
+		"M " + x1     					+ " " + y 
+	 + " L " + xmid   					+ " " + y
+	 + " L " + (xmid + arrow*direction) + " " + (y + arrow)
+	 + " L " + xmid   					+ " " + y
+	 + " L " + (xmid + arrow*direction) + " " + (y - arrow)
+	 + " L " + xmid   					+ " " + y
+	 + " L " + x2   					+ " " + y);
+});
+
+
+
+
+var endArrowPathGenerator = R.curry(function(arrowSize, d) {
+	var arrow = -1*arrowSize,
+		x1 = 0,
+		x2 = d.end-d.start,
+		y = 0,
+		direction = Number(d.strand=="+")*2-1;
+	var xmid = (x1 + x2)/2;
+
+	if (d.strand === "+") {
+		return (
+			"M " + x1     					+ " " + y 
+		 + " L " + x2   					+ " " + y
+		 + " L " + (x2 + arrow*direction) 	+ " " + (y + arrow)
+		 + " L " + x2   					+ " " + y
+		 + " L " + (x2 + arrow*direction) 	+ " " + (y - arrow)
+		 + " L " + x2   					+ " " + y);
+	} else {
+		return (
+			"M " + x1     					+ " " + y 
+		 + " L " + (x1 + arrow*direction) 	+ " " + (y + arrow)
+		 + " L " + x1   					+ " " + y
+		 + " L " + (x1 + arrow*direction) 	+ " " + (y - arrow)
+		 + " L " + x1   					+ " " + y
+		 + " L " + x2   					+ " " + y);
+	}
+	
+});
+
+// resolveDirection : {strand {'+', '-', other}, degree [-180,180)} -> {degree, degree-180}
+const resolveDirection = (strand, degree) =>
+	R.cond([
+		  [R.equals('+'), R.always(degree)],
+		  [R.equals('-'), R.always(degree-180)],
+		  [R.T, R.always(degree)]
+	])(strand);
+
+
 Track.prototype.drawAnnotationSymbols = function() {
 	var xOrY = this.side;
 	var scale = this.parent.scales[xOrY];
@@ -1170,7 +1219,7 @@ Track.prototype.drawAnnotationSymbols = function() {
 
 	annots = annots.merge(newAnnots);
 
-	annots.on("click", function(d) { console.log(d) });
+	annots.on("click", function(d) { d.clicked = true; console.log(d) });
 
 	var trackThickness = xOrY === "x" ? _track.height() : _track.width();
 
@@ -1186,9 +1235,13 @@ Track.prototype.drawAnnotationSymbols = function() {
 	}
 
 	if (this.styles["show rectangles"]) {
+		const opacity = this.styles["rectangle opacity"];
 		annots.select("rect")
 			.style("visibility", "visible")
-			.attr("fill", d => colorScale(d.seq));
+			.attr("fill", d => colorScale(d.seq))
+			.attr("stroke", d => colorScale(d.seq))
+			.attr("stroke-width", 1)
+			.attr("opacity", opacity);
 
 		if (xOrY == "x") {
 			annots.select("rect")
@@ -1205,62 +1258,72 @@ Track.prototype.drawAnnotationSymbols = function() {
 	}
 
 	if (this.styles["show arrows based on strands"]) {
+
+		if (xOrY == "x") {
+			annots.select("path")
+				.attr("transform",
+					(d) => `translate(0, ${(annotThickness/2)})`);
+		} else if (xOrY == "y") {
+			annots.select("path")
+				.attr("transform", (d) => `translate(${(annotThickness/2)}, 0) rotate(-90)`);
+		}
+
+		var arrowFunction = endArrowPathGenerator(annotThickness/2);
+		switch (this.styles["arrow style"]) {
+			case "triangle":
+				arrowFunction = d3.symbol().type(d3.symbolTriangle).size(annotThickness);
+				if (xOrY == "x") {
+					annots.select("path")
+						.attr("transform",
+							(d) => `translate(${(d.end-d.start)/2}, ${(annotThickness/2)}) rotate(${'strand' in d ? resolveDirection(d.strand, 90) : 90})`);
+				} else if (xOrY == "y") {
+					annots.select("path")
+						.attr("transform", (d) => `translate(${(annotThickness/2)}, ${(d.end-d.start)/2}) rotate(${'strand' in d ? resolveDirection(d.strand, 0) : 0})`);
+				}
+				break;
+			case "arrow at the end":
+				arrowFunction = endArrowPathGenerator(annotThickness/2);
+				break;
+			case "arrow in the middle":
+				arrowFunction = midArrowPathGenerator(annotThickness/2);
+				break;
+		}
+
 		annots.select("path")
 			.style("visibility", "visible")
 			.attr("fill", d => colorScale(d.seq))
-			.attr("d", d3.symbol().type(d3.symbolTriangle).size(annotThickness))
-			// .attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
+			.attr("stroke-width", 2)
 			.attr("stroke", (d) => colorScale(d.seq))
-			.on("click", function(d) {console.log(d)});
+			.attr("d", arrowFunction);
 
-			if (xOrY == "x") {
-				annots.select("path")
-					.attr("transform",
-						(d) => `translate(0, ${(annotThickness/2)}) rotate(${'strand' in d ? resolveDirection(d.strand, 90) : 90})`);
-			} else if (xOrY == "y") {
-				annots.select("path")
-					.attr("transform", (d) => `translate(${(annotThickness/2)}, 0) rotate(${'strand' in d ? resolveDirection(d.strand, 0) : 0})`);
-			}
+		
 	}  else {
 		annots.select("path")
 			.style("visibility", "hidden")
 	}
 
 	if (this.styles["show names"]) {
+		const fontSize = this.styles["font size"];
 		annots.select("text")
 			.style("visibility", "visible")
 			.attr("fill", d => colorScale(d.seq))
-			.on("click", function(d) { console.log(d) })
 			.style("dominant-baseline","middle")
 			.style("text-anchor","middle")
-			.text(d => d.name)
+			.style("font-size", fontSize)
+			.text(d => d.name);
 
-			if (xOrY == "x") {
-				annots.select("text")
-					.attr("width", function(d) {return d.end-d.start})
-					.attr("height", annotThickness);
-			} else if (xOrY == "y") {
-				annots.select("text")
-					.attr("width", annotThickness)
-					.attr("height", d => d.start - d.end);
-			}
+		if (xOrY == "x") {
+			annots.select("text")
+				.attr("x", function(d) {return (d.end-d.start)/2});
+		} else if (xOrY == "y") {
+			annots.select("text")
+				.attr("y", function(d) {return -(d.end-d.start)/2});
+		}
 	}  else {
 		annots.select("text")
 			.style("visibility", "hidden")
 	}
 
-		
-	// if (this.styles["show rectangles"]) {
-	// 	drawRect(xOrY, dataZoomed, _track);
-	// }
-
-	// if (this.styles["show names"]) {
-	// 	drawText(xOrY, dataZoomed, _track);
-	// }
-
-	// if (this.styles["show arrows based on strands"]) {
-	// 	drawTriangle(xOrY, dataZoomed, _track);
-	// }
 }
 
 Track.prototype.draw = function() {
@@ -1299,10 +1362,17 @@ Track.prototype.updateSelected = function(selected) {
 
 Track.prototype.style_schema = function() {
 	var styles = [
-		{name: "Annotations", type: "section"},
+		{name: "Rectangles", type: "section"},
 		{name: "show rectangles", type: "bool", default: true},
+		{name: "rectangle opacity", type: "range", default: 0.5, min: 0, max: 1, step: 0.05},
+		
+		{name: "Text", type: "section"},
 		{name: "show names", type: "bool", default: false},
-		{name: "show arrows based on strands", type: "bool", default: false},
+		{name: "font size", type: "range", default: 10, min: 0, max: 40, step: 2},
+		
+		{name: "Arrows", type: "section"},
+		{name: "show arrows based on strands", type: "bool", default: true},
+		{name: "arrow style", type: "selection", default:"arrow at the end", options: ["arrow at the end","arrow in the middle","triangle"]},
 	];
 
 	return styles;
