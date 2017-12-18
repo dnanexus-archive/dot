@@ -741,16 +741,17 @@ DotPlot.prototype.drawGrid = function() {
 	xLabels.exit().remove();
 
 	newXLabels.append("text")
-		.style("text-anchor","end")
-		.style("font-size", 10)
-		.attr("transform", "rotate(-45)")
+		.style("text-anchor","end");
 
-	var labelHeight = this.state.layout.outer.height + 10;
+	var labelHeight = this.state.layout.outer.height + this.styles["font size"];
 	xLabels = xLabels.merge(newXLabels)
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 
+	var rotation = this.styles["rotate x-axis labels"] ? -45 : 0;
 	xLabels.select("text").datum(function(d) {return d})
 			.text(displayName)
+			.attr("transform", `rotate(${rotation})`)
+			.style("font-size", this.styles["font size"])
 			.style("cursor", "pointer")
 			.on("click", setRef);
 
@@ -764,12 +765,12 @@ DotPlot.prototype.drawGrid = function() {
 	var newYLabels = yLabels.enter().append("text")
 		.attr("class","yLabels")
 		.style("text-anchor","end")
-		.style("font-size", 10);
 
 	var yLabels = yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(displayName)
+		.style("font-size", this.styles["font size"])
 		.style("cursor", "pointer")
 		.on("click", setQuery);
 
@@ -789,11 +790,11 @@ DotPlot.prototype.drawGrid = function() {
 		}
 		return true;
 	}
-	if (this.styles["highlight loaded queries"]) {
-		yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
-	} else {
+	// if (this.styles["highlight loaded queries"]) {
+	// 	yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
+	// } else {
 		yLabels.style("fill", function(d) {return "black"})
-	}
+	// }
 }
 
 DotPlot.prototype.drawAlignments = function() {
@@ -939,7 +940,7 @@ DotPlot.prototype.style_schema = function() {
 	var styles = [
 		{name: "Fundamentals", type: "section"},
 		{name: "show repetitive alignments", type: "bool", default: false},
-		{name: "highlight loaded queries", type: "bool", default: true},
+		// {name: "highlight loaded queries", type: "bool", default: true},
 
 		{name: "Alignments", type: "section"},
 		{name: "minimum alignment length", type: "number", default: 0},
@@ -956,6 +957,11 @@ DotPlot.prototype.style_schema = function() {
 		{name: "width of query grid lines", type:"number", default: 0},
 		// {name: "width of query grid lines", type:"number", default: 0.6},
 		{name: "color of query grid lines", type:"color", default: "black"},
+
+		{name: "Sequence labels", type: "section"},
+		{name: "rotate x-axis labels", type: "bool", default: true},
+		{name: "font size", type: "number", default: 10},
+
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
 		// {name:"a bool", type:"bool", default:true},
@@ -1193,15 +1199,20 @@ Track.prototype.drawAnnotationSymbols = function() {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
 			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
 			seq: d[refOrQuery],
+			length: d[refOrQuery + '_end'] - d[refOrQuery + '_start'],
 			name: d.name,
 			hover: d.name + " (" + d[refOrQuery] + ":" + d[refOrQuery + '_start'] + "-" + d[refOrQuery + '_end'] + ")",
 		};
 		return d.strand ? R.merge(obj, { strand: d.strand} ) : obj;
 	}
 
+	var minFeatureLength = this.styles["minimum feature length (bp)"];
+	console.log("minFeatureLength:", minFeatureLength);
+	var longEnough = function(d) {
+		return d.length >= minFeatureLength;
+	}
 
-
-	var dataToPlot = R.compose(R.map(scaleAnnot), R.filter(annotMatches))(this.data);
+	var dataToPlot = R.compose(R.filter(longEnough), R.map(scaleAnnot), R.filter(annotMatches))(this.data);
 
 	
 
@@ -1236,7 +1247,7 @@ Track.prototype.drawAnnotationSymbols = function() {
 
 	annots = annots.merge(newAnnots);
 
-	annots.on("click", function(d) { d.clicked = true; console.log(d) });
+	annots.on("click", function(d) { d.clicked = true; console.log(d); showMessage(d.hover); });
 
 	var trackThickness = xOrY === "x" ? _track.height() : _track.width();
 
@@ -1358,17 +1369,20 @@ Track.prototype.updateSelected = function(selected) {
 
 Track.prototype.style_schema = function() {
 	var styles = [
+		{name: "Filters", type: "section"},
+		{name: "minimum feature length (bp)", type: "number", default: 0},
+
+		{name: "Arrows", type: "section"},
+		{name: "show arrows based on strands", type: "bool", default: true},
+		{name: "arrow style", type: "selection", default:"arrow at the end", options: ["arrow at the end","arrow in the middle","triangle"]},
+
 		{name: "Rectangles", type: "section"},
 		{name: "show rectangles", type: "bool", default: true},
 		{name: "rectangle opacity", type: "range", default: 0.5, min: 0, max: 1, step: 0.05},
 		
 		{name: "Text", type: "section"},
-		{name: "show names", type: "bool", default: true},
+		{name: "show names", type: "bool", default: false},
 		{name: "font size", type: "range", default: 10, min: 0, max: 40, step: 2},
-		
-		{name: "Arrows", type: "section"},
-		{name: "show arrows based on strands", type: "bool", default: true},
-		{name: "arrow style", type: "selection", default:"arrow at the end", options: ["arrow at the end","arrow in the middle","triangle"]},
 	];
 
 	return styles;
