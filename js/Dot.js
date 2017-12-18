@@ -1031,6 +1031,7 @@ var Track = function(config) {
 	// Create background
 	this.element.append("rect")
 		.attr("class","trackBackground");
+	this.element.append("g").attr("class", "annotation_group");
 }
 
 
@@ -1198,16 +1199,32 @@ Track.prototype.drawAnnotationSymbols = function() {
 		return d.strand ? R.merge(obj, { strand: d.strand} ) : obj;
 	}
 
+
+
 	var dataToPlot = R.compose(R.map(scaleAnnot), R.filter(annotMatches))(this.data);
+
+	
 
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
+
+	var shiftY = this.parent.state.layout.inner.height;
+	if (xOrY === "y") {
+		dataZoomed = R.map(d => {
+			d.start = shiftY - d.start;
+			d.end = shiftY - d.end;
+			return d}
+		, dataZoomed);
+	}
 	var _track = this;
 
+	let annotGroup = _track.element.select(".annotation_group");
 
+	if (xOrY === "y") {
+		annotGroup.attr("transform", `translate(0,${shiftY}) rotate(-90)`);
+	}
 
-	let annots = _track.element.selectAll(".annot").data(dataZoomed);
-
+	let annots = annotGroup.selectAll(".annot").data(dataZoomed);
 
 	let newAnnots = annots.enter().append("g").attr("class", "annot");
 	newAnnots.append("rect");
@@ -1226,14 +1243,9 @@ Track.prototype.drawAnnotationSymbols = function() {
 	var annotThickness = trackThickness / 2;
 	var position = (trackThickness - annotThickness) / 2;
 
-	if (xOrY == "x") {
-		annots.attr("transform", d => `translate(${d.start}, ${position})`);
-	} else if (xOrY == "y") {
-		annots.attr("transform", d => `translate(${position}, ${d.end})`);
-	} else {
-		throw ("side must be x or y in Track.draw");
-	}
-
+	
+	annots.attr("transform", d => `translate(${d.start}, ${position})`);
+	
 	if (this.styles["show rectangles"]) {
 		const opacity = this.styles["rectangle opacity"];
 		annots.select("rect")
@@ -1243,15 +1255,9 @@ Track.prototype.drawAnnotationSymbols = function() {
 			.attr("stroke-width", 1)
 			.attr("opacity", opacity);
 
-		if (xOrY == "x") {
-			annots.select("rect")
-				.attr("width", function(d) {return d.end-d.start})
-				.attr("height", annotThickness);
-		} else if (xOrY == "y") {
-			annots.select("rect")
-				.attr("width", annotThickness)
-				.attr("height", d => d.start - d.end);
-		}
+		annots.select("rect")
+			.attr("width", function(d) {return d.end-d.start})
+			.attr("height", annotThickness);
 	} else {
 		annots.select("rect")
 			.style("visibility", "hidden")
@@ -1259,27 +1265,18 @@ Track.prototype.drawAnnotationSymbols = function() {
 
 	if (this.styles["show arrows based on strands"]) {
 
-		if (xOrY == "x") {
-			annots.select("path")
-				.attr("transform",
-					(d) => `translate(0, ${(annotThickness/2)})`);
-		} else if (xOrY == "y") {
-			annots.select("path")
-				.attr("transform", (d) => `translate(${(annotThickness/2)}, 0) rotate(-90)`);
-		}
-
+		annots.select("path")
+			.attr("transform",
+				(d) => `translate(0, ${(annotThickness/2)})`);
+		
 		var arrowFunction = endArrowPathGenerator(annotThickness/2);
 		switch (this.styles["arrow style"]) {
 			case "triangle":
 				arrowFunction = d3.symbol().type(d3.symbolTriangle).size(annotThickness);
-				if (xOrY == "x") {
-					annots.select("path")
-						.attr("transform",
-							(d) => `translate(${(d.end-d.start)/2}, ${(annotThickness/2)}) rotate(${'strand' in d ? resolveDirection(d.strand, 90) : 90})`);
-				} else if (xOrY == "y") {
-					annots.select("path")
-						.attr("transform", (d) => `translate(${(annotThickness/2)}, ${(d.end-d.start)/2}) rotate(${'strand' in d ? resolveDirection(d.strand, 0) : 0})`);
-				}
+			
+				annots.select("path")
+					.attr("transform",
+						(d) => `translate(${(d.end-d.start)/2}, ${(annotThickness/2)}) rotate(${'strand' in d ? resolveDirection(d.strand, 90) : 90})`);
 				break;
 			case "arrow at the end":
 				arrowFunction = endArrowPathGenerator(annotThickness/2);
@@ -1311,14 +1308,13 @@ Track.prototype.drawAnnotationSymbols = function() {
 			.style("text-anchor","middle")
 			.style("font-size", fontSize)
 			.text(d => d.name);
-
-		if (xOrY == "x") {
+		if (xOrY === "y") {
 			annots.select("text")
-				.attr("x", function(d) {return (d.end-d.start)/2});
-		} else if (xOrY == "y") {
-			annots.select("text")
-				.attr("y", function(d) {return -(d.end-d.start)/2});
+				.attr("transform","rotate(180)");
 		}
+
+		annots.select("text")
+			.attr("x", function(d) {return (d.end-d.start)/2});
 	}  else {
 		annots.select("text")
 			.style("visibility", "hidden")
@@ -1367,7 +1363,7 @@ Track.prototype.style_schema = function() {
 		{name: "rectangle opacity", type: "range", default: 0.5, min: 0, max: 1, step: 0.05},
 		
 		{name: "Text", type: "section"},
-		{name: "show names", type: "bool", default: false},
+		{name: "show names", type: "bool", default: true},
 		{name: "font size", type: "range", default: 10, min: 0, max: 40, step: 2},
 		
 		{name: "Arrows", type: "section"},
