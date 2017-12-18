@@ -392,7 +392,7 @@ DotPlot.prototype.addAnnotationData = function(dataset) {
 		var sharedSeqs = R.intersection(alignmentSeqs, annotSeqs);
 		var annotSeqsNotInAlignments = R.difference(annotSeqs, alignmentSeqs);
 		if (annotSeqsNotInAlignments.length === annotSeqs.length) {
-			console.warn("None of the annotations' sequence names match the alignments' sequence names");
+			showMessage("None of the annotations' sequence names match the alignments' sequence names", "danger");
 			return;
 		} else if (annotSeqsNotInAlignments.length > 0) {
 			console.warn("Some annotations are on the following sequences that are not in the alignments input:", R.join(", ", annotSeqsNotInAlignments));
@@ -741,16 +741,17 @@ DotPlot.prototype.drawGrid = function() {
 	xLabels.exit().remove();
 
 	newXLabels.append("text")
-		.style("text-anchor","end")
-		.style("font-size", 10)
-		.attr("transform", "rotate(-45)")
+		.style("text-anchor","end");
 
-	var labelHeight = this.state.layout.outer.height + 10;
+	var labelHeight = this.state.layout.outer.height + this.styles["font size"];
 	xLabels = xLabels.merge(newXLabels)
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 
+	var rotation = this.styles["rotate x-axis labels"] ? -45 : 0;
 	xLabels.select("text").datum(function(d) {return d})
 			.text(displayName)
+			.attr("transform", `rotate(${rotation})`)
+			.style("font-size", this.styles["font size"])
 			.style("cursor", "pointer")
 			.on("click", setRef);
 
@@ -764,12 +765,12 @@ DotPlot.prototype.drawGrid = function() {
 	var newYLabels = yLabels.enter().append("text")
 		.attr("class","yLabels")
 		.style("text-anchor","end")
-		.style("font-size", 10);
 
 	var yLabels = yLabels.merge(newYLabels)
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(displayName)
+		.style("font-size", this.styles["font size"])
 		.style("cursor", "pointer")
 		.on("click", setQuery);
 
@@ -789,11 +790,11 @@ DotPlot.prototype.drawGrid = function() {
 		}
 		return true;
 	}
-	if (this.styles["highlight loaded queries"]) {
-		yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
-	} else {
+	// if (this.styles["highlight loaded queries"]) {
+	// 	yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
+	// } else {
 		yLabels.style("fill", function(d) {return "black"})
-	}
+	// }
 }
 
 DotPlot.prototype.drawAlignments = function() {
@@ -939,7 +940,7 @@ DotPlot.prototype.style_schema = function() {
 	var styles = [
 		{name: "Fundamentals", type: "section"},
 		{name: "show repetitive alignments", type: "bool", default: false},
-		{name: "highlight loaded queries", type: "bool", default: true},
+		// {name: "highlight loaded queries", type: "bool", default: true},
 
 		{name: "Alignments", type: "section"},
 		{name: "minimum alignment length", type: "number", default: 0},
@@ -956,6 +957,11 @@ DotPlot.prototype.style_schema = function() {
 		{name: "width of query grid lines", type:"number", default: 0},
 		// {name: "width of query grid lines", type:"number", default: 0.6},
 		{name: "color of query grid lines", type:"color", default: "black"},
+
+		{name: "Sequence labels", type: "section"},
+		{name: "rotate x-axis labels", type: "bool", default: true},
+		{name: "font size", type: "number", default: 10},
+
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
 		// {name:"a bool", type:"bool", default:true},
@@ -997,8 +1003,7 @@ DotPlot.prototype.updateTrackSelections = function(selectedKey) {
 var Track = function(config) {
 	this.element = config.element;
 
-	this.element.append("rect")
-		.attr("class","trackBackground");
+	this.element.attr("class", "Track");
 
 	this.parent = config.parent;
 
@@ -1008,7 +1013,34 @@ var Track = function(config) {
 	this.key = config.key;
 	this.data = config.data;
 	this.reset_styles();
+
+
+	// Create handle for editing the track
+	this.editHandle = this.element.append("g")
+		.style("z-index", 100000)
+		.attr("class", "editHandle")
+		.style('visibility', 'hidden')
+		.style("cursor", "pointer");
+
+	this.editHandle.append("rect")
+		.style("fill","lightblue");
+
+	this.editHandle.append("text")
+		.style("font-family", "FontAwesome")
+		.style("dominant-baseline","middle")
+		.style("text-anchor","middle")
+		.text('\uf040');
+
+	this.editHandle.append("path");
+
+
+	// Create background
+	this.element.append("rect")
+		.attr("class","trackBackground");
+	this.element.append("g").attr("class", "annotation_group");
 }
+
+
 
 Track.prototype.top = function(newTop) {
 	if (newTop === undefined) {
@@ -1042,8 +1074,106 @@ Track.prototype.width = function(newWidth) {
 	}
 }
 
+var colorScale = d3.scaleOrdinal(d3.schemeAccent);
 
-const colorScale = d3.scaleOrdinal(d3.schemeAccent);
+Track.prototype.drawEditHandle = function() {
+	var _track = this;
+	var xOrY = this.side;
+
+	const handleSize = Math.min(this.state.height, this.state.width);
+
+	var editHandle = this.editHandle;
+	
+	editHandle.on("click", function() {_track.editClicked()});
+
+	if (xOrY === "x") {
+		editHandle
+			.attr("transform",`translate(${-handleSize},0)`);
+
+		editHandle.selectAll("path")
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(20))
+			.attr("transform", `rotate(90) translate(${handleSize/2}, ${-handleSize+5})`);
+
+	} else if (xOrY === "y") {
+		editHandle
+			.attr("transform",`translate(0, ${this.state.height})`);
+
+		editHandle.selectAll("path")
+			.attr("d", d3.symbol().type(d3.symbolTriangle).size(20))
+			.attr("transform", `translate(${handleSize/2}, 5)`);
+	}
+
+	editHandle.selectAll("rect")
+		.style("width", handleSize)
+		.style("height", handleSize)
+
+	editHandle.selectAll("text")
+		.attr("x", (+handleSize/2))
+		.attr("y", (handleSize/2));
+
+	function mouseover() {
+		editHandle.style("visibility","visible");
+	}
+
+	function mouseout() {
+		if (!_track.selected) {
+			editHandle.style("visibility","hidden");
+		}
+	}
+
+	this.element.on("mouseover", mouseover);
+	this.element.on("mouseout", mouseout);
+
+}
+
+var midArrowPathGenerator = R.curry(function(arrowSize, d) {
+	var arrow = -1*arrowSize,
+		x1 = 0,
+		x2 = d.end-d.start,
+		y = 0,
+		direction = Number(d.strand=="+")*2-1;
+	var xmid = (x1 + x2)/2;
+
+	return (
+		"M " + x1     					+ " " + y 
+	 + " L " + xmid   					+ " " + y
+	 + " L " + (xmid + arrow*direction) + " " + (y + arrow)
+	 + " L " + xmid   					+ " " + y
+	 + " L " + (xmid + arrow*direction) + " " + (y - arrow)
+	 + " L " + xmid   					+ " " + y
+	 + " L " + x2   					+ " " + y);
+});
+
+
+
+
+var endArrowPathGenerator = R.curry(function(arrowSize, d) {
+	var arrow = -1*arrowSize,
+		x1 = 0,
+		x2 = d.end-d.start,
+		y = 0,
+		direction = Number(d.strand=="+")*2-1;
+	var xmid = (x1 + x2)/2;
+
+	if (d.strand === "+") {
+		return (
+			"M " + x1     					+ " " + y 
+		 + " L " + x2   					+ " " + y
+		 + " L " + (x2 + arrow*direction) 	+ " " + (y + arrow)
+		 + " L " + x2   					+ " " + y
+		 + " L " + (x2 + arrow*direction) 	+ " " + (y - arrow)
+		 + " L " + x2   					+ " " + y);
+	} else {
+		return (
+			"M " + x1     					+ " " + y 
+		 + " L " + (x1 + arrow*direction) 	+ " " + (y + arrow)
+		 + " L " + x1   					+ " " + y
+		 + " L " + (x1 + arrow*direction) 	+ " " + (y - arrow)
+		 + " L " + x1   					+ " " + y
+		 + " L " + x2   					+ " " + y);
+	}
+	
+});
 
 // resolveDirection : {strand {'+', '-', other}, degree [-180,180)} -> {degree, degree-180}
 const resolveDirection = (strand, degree) =>
@@ -1051,100 +1181,10 @@ const resolveDirection = (strand, degree) =>
 		  [R.equals('+'), R.always(degree)],
 		  [R.equals('-'), R.always(degree-180)],
 		  [R.T, R.always(degree)]
-	  ])(strand);
-
-function drawTriangle(xOrY, ctxData, ctxTrack) {
-	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
-
-	let newAnnots = annots.enter().append("g")
-		.append("path")
-		.attr("class", "annot");
-
-	annots.exit().remove();
+	])(strand);
 
 
-	if (xOrY == "x") {
-		var size = ctxTrack.height() / 2;
-		var yPos = (ctxTrack.height() - size) / 2;
-
-		annots = annots.merge(newAnnots)
-			.attr("d", d3.symbol().type(d3.symbolTriangle).size(size))
-			.attr("transform",
-				(d) => `translate(${d.start}, ${yPos+10}) rotate(
-					${'strand' in d ? resolveDirection(d.strand, 90) : 90}
-				)`)
-
-	} else if (xOrY == "y") {
-		var size = ctxTrack.width() / 2;
-		var xPos = (ctxTrack.width() - size) / 2;
-		
-		annots = annots.merge(newAnnots)
-			.attr("d", d3.symbol().type(d3.symbolTriangle).size(size))
-			.attr("transform",
-				(d) => `translate(${xPos+10}, ${d.end}) rotate(
-					${'strand' in d ? resolveDirection(d.strand, 0) : 0}
-				)`)
-
-	} else {
-		throw ("side must be x or y in Track.draw");
-	}
-
-	annots
-		.attr("fill", (d) => d3.rgb(colorScale(d.seq)).brighter())
-		.attr("stroke", (d) => colorScale(d.seq))
-		.on("click", function(d) {console.log(d)});
-}
-
-function drawRect(xOrY, ctxData, ctxTrack) {
-	let annots = ctxTrack.element.selectAll(".annot").data(ctxData);
-
-
-	let newAnnots = annots.enter().append("g")
-		.append("rect")
-		.attr("class", "annot");
-
-	annots.exit().remove();
-
-	if (xOrY == "x") {
-		var rectHeight = ctxTrack.height() / 2;
-		var rectY = (ctxTrack.height() - rectHeight) / 2;
-		annots = annots.merge(newAnnots)
-			.attr("x", (d) => d.start)
-			.attr("width", function(d) {return d.end-d.start})
-			.attr("y", rectY)
-			.attr("height", rectHeight);
-
-	} else if (xOrY == "y") {
-		var rectWidth = ctxTrack.width() / 2;
-		var rectX = (ctxTrack.width() - rectWidth) / 2;
-
-		annots = annots.merge(newAnnots)
-			.attr("x", rectX)
-			.attr("width", rectWidth)
-			.attr("y", d => d.end)
-			.attr("height", d => d.start - d.end);
-
-	} else {
-		throw ("side must be x or y in Track.draw");
-	}
-
-	annots
-		.attr("fill", d => colorScale(d.seq))
-		.on("click", function(d) { console.log(d) });
-
-}
-
-Track.prototype.draw = function() {
-	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
-
-	var selected = this.selected;
-	// Add background or border to track
-	this.element.select("rect.trackBackground")
-		.attr("width", this.state.width)
-		.attr("height", this.state.height)
-
-	this.updateSelected();
-
+Track.prototype.drawAnnotationSymbols = function() {
 	var xOrY = this.side;
 	var scale = this.parent.scales[xOrY];
 
@@ -1159,41 +1199,157 @@ Track.prototype.draw = function() {
 			start: scale.get(d[refOrQuery], d[refOrQuery + '_start']),
 			end: scale.get(d[refOrQuery], d[refOrQuery + '_end']),
 			seq: d[refOrQuery],
+			length: d[refOrQuery + '_end'] - d[refOrQuery + '_start'],
+			name: d.name,
 			hover: d.name + " (" + d[refOrQuery] + ":" + d[refOrQuery + '_start'] + "-" + d[refOrQuery + '_end'] + ")",
 		};
 		return d.strand ? R.merge(obj, { strand: d.strand} ) : obj;
 	}
 
-	var dataToPlot = R.compose(R.map(scaleAnnot), R.filter(annotMatches))(this.data);
+	var minFeatureLength = this.styles["minimum feature length (bp)"];
+	console.log("minFeatureLength:", minFeatureLength);
+	var longEnough = function(d) {
+		return d.length >= minFeatureLength;
+	}
+
+	var dataToPlot = R.compose(R.filter(longEnough), R.map(scaleAnnot), R.filter(annotMatches))(this.data);
+
+	
 
 	var dataZoomed = zoomFilterSnap(this.parent.scales.zoom.area, this.parent.scales.zoom, xOrY)(dataToPlot);
 
-	if (xOrY == "x") {
-		console.log(dataZoomed);
-	}
 
+	var shiftY = this.parent.state.layout.inner.height;
+	if (xOrY === "y") {
+		dataZoomed = R.map(d => {
+			d.start = shiftY - d.start;
+			d.end = shiftY - d.end;
+			return d}
+		, dataZoomed);
+	}
 	var _track = this;
 
-	this.element.on("click", function() { _track.clicked() });
+	let annotGroup = _track.element.select(".annotation_group");
 
-	let symbol = _track.get_styles()["annotation representation"];
+	if (xOrY === "y") {
+		annotGroup.attr("transform", `translate(0,${shiftY}) rotate(-90)`);
+	}
 
-	switch(symbol) {
-		case "arrow":
-				drawTriangle(xOrY, dataZoomed, _track);
+	let annots = annotGroup.selectAll(".annot").data(dataZoomed);
+
+	let newAnnots = annots.enter().append("g").attr("class", "annot");
+	newAnnots.append("rect");
+	newAnnots.append("path");
+	newAnnots.append("text");
+
+	
+	annots.exit().remove();
+
+	annots = annots.merge(newAnnots);
+
+	annots.on("click", function(d) { d.clicked = true; console.log(d); showMessage(d.hover); });
+
+	var trackThickness = xOrY === "x" ? _track.height() : _track.width();
+
+	var annotThickness = trackThickness / 2;
+	var position = (trackThickness - annotThickness) / 2;
+
+	
+	annots.attr("transform", d => `translate(${d.start}, ${position})`);
+	
+	if (this.styles["show rectangles"]) {
+		const opacity = this.styles["rectangle opacity"];
+		annots.select("rect")
+			.style("visibility", "visible")
+			.attr("fill", d => colorScale(d.seq))
+			.attr("stroke", d => colorScale(d.seq))
+			.attr("stroke-width", 1)
+			.attr("opacity", opacity);
+
+		annots.select("rect")
+			.attr("width", function(d) {return d.end-d.start})
+			.attr("height", annotThickness);
+	} else {
+		annots.select("rect")
+			.style("visibility", "hidden")
+	}
+
+	if (this.styles["show arrows based on strands"]) {
+
+		annots.select("path")
+			.attr("transform",
+				(d) => `translate(0, ${(annotThickness/2)})`);
+		
+		var arrowFunction = endArrowPathGenerator(annotThickness/2);
+		switch (this.styles["arrow style"]) {
+			case "triangle":
+				arrowFunction = d3.symbol().type(d3.symbolTriangle).size(annotThickness);
+			
+				annots.select("path")
+					.attr("transform",
+						(d) => `translate(${(d.end-d.start)/2}, ${(annotThickness/2)}) rotate(${'strand' in d ? resolveDirection(d.strand, 90) : 90})`);
 				break;
-		case "strip":
-				drawRect(xOrY, dataZoomed, _track);
+			case "arrow at the end":
+				arrowFunction = endArrowPathGenerator(annotThickness/2);
 				break;
-		default: // default to rect
-				drawRect(xOrY, dataZoomed, _track);
+			case "arrow in the middle":
+				arrowFunction = midArrowPathGenerator(annotThickness/2);
 				break;
+		}
+
+		annots.select("path")
+			.style("visibility", "visible")
+			.attr("fill", d => colorScale(d.seq))
+			.attr("stroke-width", 2)
+			.attr("stroke", (d) => colorScale(d.seq))
+			.attr("d", arrowFunction);
+
+		
+	}  else {
+		annots.select("path")
+			.style("visibility", "hidden")
+	}
+
+	if (this.styles["show names"]) {
+		const fontSize = this.styles["font size"];
+		annots.select("text")
+			.style("visibility", "visible")
+			.attr("fill", d => colorScale(d.seq))
+			.style("dominant-baseline","middle")
+			.style("text-anchor","middle")
+			.style("font-size", fontSize)
+			.text(d => d.name);
+		if (xOrY === "y") {
+			annots.select("text")
+				.attr("transform","rotate(180)");
+		}
+
+		annots.select("text")
+			.attr("x", function(d) {return (d.end-d.start)/2});
+	}  else {
+		annots.select("text")
+			.style("visibility", "hidden")
 	}
 
 }
 
-Track.prototype.clicked = function() {
-	console.log("clicked: ", this.key);
+Track.prototype.draw = function() {
+	this.element.attr("transform", "translate(" + this.state.left + "," + this.state.top + ")");
+
+	var selected = this.selected;
+	// Add background or border to track
+	this.element.select("rect.trackBackground")
+		.attr("width", this.state.width)
+		.attr("height", this.state.height)
+
+	this.updateSelected();
+
+	this.drawEditHandle();
+
+	this.drawAnnotationSymbols();
+}
+
+Track.prototype.editClicked = function() {
 	if (this.selected) {
 		this.selected = false;
 		this.parent.parent.stylePlot();
@@ -1206,16 +1362,27 @@ Track.prototype.clicked = function() {
 Track.prototype.updateSelected = function(selected) {
 	this.selected = selected;
 	this.element.select("rect.trackBackground")
-		.style("fill", function(){if (selected) {return "lightblue"} else {return "white"}})
+		.style("fill", function(){if (selected) {return "white"} else {return "white"}})
 		.style("stroke", function(){if (selected) {return "blue"} else {return "white"}})
 
 }
 
 Track.prototype.style_schema = function() {
 	var styles = [
-		{name: "Annotations", type: "section"},
-		{name: "annotation representation", type: "selection", default:"strip", options: ["strip","arrow"]},
+		{name: "Filters", type: "section"},
+		{name: "minimum feature length (bp)", type: "number", default: 0},
 
+		{name: "Arrows", type: "section"},
+		{name: "show arrows based on strands", type: "bool", default: true},
+		{name: "arrow style", type: "selection", default:"arrow at the end", options: ["arrow at the end","arrow in the middle","triangle"]},
+
+		{name: "Rectangles", type: "section"},
+		{name: "show rectangles", type: "bool", default: true},
+		{name: "rectangle opacity", type: "range", default: 0.5, min: 0, max: 1, step: 0.05},
+		
+		{name: "Text", type: "section"},
+		{name: "show names", type: "bool", default: false},
+		{name: "font size", type: "range", default: 10, min: 0, max: 40, step: 2},
 	];
 
 	return styles;
