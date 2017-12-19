@@ -44,6 +44,8 @@ function showMessage(message, sentiment) {
 
 // Spinner for showing that something is loading
 function showSpinner(bool, variable, reset) {
+	
+	// Stack of tasks, so when multiple files are loading, we only increment and decrement
 	if (reset) {
 		VTTGlobal.spinnerStack = 0;
 	} else {
@@ -54,14 +56,27 @@ function showSpinner(bool, variable, reset) {
 		}
 	}
 
-	// Stack of tasks, so when multiple files are loading, we only increment and decrement
-	d3.select("#spinner").style("display", function() {
-		if (VTTGlobal.spinnerStack > 0) {
-			return "block";
-		} else {
-			return "none";
-		}
-	});
+	if (VTTGlobal.spinnerStack > 0) {
+		// wait a bit before actually showing spinner
+		setTimeout(function() {
+			// check again in case the stack is now empty
+			if (VTTGlobal.spinnerStack > 0) {
+				d3.select("#spinner").style("display", "block");
+			}
+		}, 100);
+	} else {
+		d3.select("#spinner").style("display", "none");
+	}
+
+	// d3.select("#spinner").style("display", function() {
+	// 	if (VTTGlobal.spinnerStack > 0) {
+	// 		return "block";
+	// 	} else {
+	// 		return "none";
+	// 	}
+	// });
+
+	
 
 	// // Simple on/off
 	// d3.select("#spinner").style("display", function() {

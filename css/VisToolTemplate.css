@@ -59,3 +59,18 @@ h1, h2 {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+button {
+	border: none;
+	color: white;
+	background-color: #008CBA;
+	margin: 4px 2px;
+    cursor: pointer;
+    text-align: center;
+
+}
+
+button:disabled {
+	background-color: #cccccc;
+}
+

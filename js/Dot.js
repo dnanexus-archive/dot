@@ -108,6 +108,42 @@ DotPlot.prototype.setCoords = function(coords, index) {
 	this.initializePlot();
 }
 
+DotPlot.prototype.calculateMemory = function(boundariesY) {
+	const queryIndex = this.state.queryIndex;
+
+	function memByQuery(query) {
+		var uniq = queryIndex[query]["bytePosition_unique"];
+		var rep = uniq + queryIndex[query]["bytePosition_repetitive"];
+		var end = rep + queryIndex[query]["bytePosition_end"];
+		var u = rep-uniq;
+		var r = end-rep;
+		if (queryIndex[query]["loaded_unique"]) {
+			u = 0;
+		}
+		if (queryIndex[query]["loaded_repetitive"]) {
+			r = 0;
+		}
+
+		return {unique: u, repetitive: r};
+	}
+
+	if (boundariesY !== undefined) {
+		this.state.queries_in_view = R.pluck("name", boundariesY);
+		var mems = R.map(memByQuery, this.state.queries_in_view);
+		var memUnique = R.compose(R.sum, R.pluck("unique"))(mems);
+		var memRepetitive = R.compose(R.sum, R.pluck("repetitive"))(mems);
+
+		this.parent.updateMemoryButtons(memUnique, memRepetitive);
+	}
+}
+
+DotPlot.prototype.loadAllInView = function(tag) {
+	var _this = this;
+	R.map(function(query) {
+		_this.loadAlignmentsByQueryAndTag(query, tag);
+	}, this.state.queries_in_view);
+}
+
 DotPlot.prototype.parseIndex = function(index) {
 
 	var lines = index.split("\n");
@@ -179,7 +215,10 @@ DotPlot.prototype.draw = function() {
 
 DotPlot.prototype.drawRequested = function(numDrawRequests) {
 	if (numDrawRequests === this.state.numDrawRequests) {
-		console.log("number of draws skipped:", numDrawRequests-1)
+		if (numDrawRequests > 1) {
+			console.log("number of draws skipped:", numDrawRequests-1)
+		}
+
 		this.drawGrid();
 		this.drawAlignments();
 		this.drawAnnotationTracks();
@@ -275,16 +314,7 @@ var setAlignments = R.curry(function(_this, query, tag, data) {
 
 });
 
-DotPlot.prototype.loadAlignmentsByQuery = function(query) {
-	var toGet = {unique: true, repetitive: true};
-
-	if (this.state.queryIndex[query]["loaded_unique"]) {
-		toGet.unique = false;
-	}
-
-	if (this.state.queryIndex[query]["loaded_repetitive"] || this.styles["show repetitive alignments"] === false) {
-		toGet.repetitive = false;
-	}
+DotPlot.prototype.loadAlignmentsByQueryAndTag = function(query, tag) {
 
 	var uniq = this.state.queryIndex[query]["bytePosition_unique"];
 	var rep = uniq + this.state.queryIndex[query]["bytePosition_repetitive"];
@@ -294,38 +324,13 @@ DotPlot.prototype.loadAlignmentsByQuery = function(query) {
 		this.state.dataByQuery[query] = {};
 	}
 
-	if (toGet.unique && toGet.repetitive) {
-		// console.log("get both");
-		this.coords(uniq, end, setAlignments(this, query, "both"));
-		this.state.queryIndex[query]["loaded_unique"] = true;
-		this.state.queryIndex[query]["loaded_repetitive"] = true;
-	} else if (toGet.unique) {
-		// console.log("get unique only");
+	if (tag === "unique" && !(this.state.queryIndex[query]["loaded_unique"])) {
 		this.coords(uniq, rep, setAlignments(this, query, "unique"));
 		this.state.queryIndex[query]["loaded_unique"] = true;
-	} else if (toGet.repetitive) {
-		// console.log("get repetitive only");
+	} else if (tag === "repetitive" && !(this.state.queryIndex[query]["loaded_repetitive"])) {
 		this.coords(rep, end, setAlignments(this, query, "repetitive"));
 		this.state.queryIndex[query]["loaded_repetitive"] = true;
 	}
-}
-
-DotPlot.prototype.loadDataFromSelection = function() {
-
-	// var showRepeats = this.styles["show repetitive alignments"];
-
-	var _this = this;
-
-	R.map(function(d) {
-
-		_this.loadAlignmentsByQuery(d[0]);
-
-		// _this.loadAlignmentsByQueryAndTag(d[0], "unique");
-		// if (showRepeats) {
-		// 	_this.loadAlignmentsByQueryAndTag(d[0], "repetitive");
-		// }
-	}, this.state.selectedQueries);
-
 }
 
 DotPlot.prototype.seqSelectionDidChange = function() {
@@ -351,7 +356,6 @@ DotPlot.prototype.selectRefs = function(refNames) {
 
 	state.selectedQueries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.allQueries);
 
-	this.loadDataFromSelection();
 	this.seqSelectionDidChange();
 }
 
@@ -366,7 +370,6 @@ DotPlot.prototype.selectQueries = function(queryNames) {
 
 	state.selectedRefs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.allRefs);
 
-	this.loadDataFromSelection();
 	this.seqSelectionDidChange();
 }
 
@@ -652,32 +655,9 @@ DotPlot.prototype.drawGrid = function() {
 	var boundariesX = zoomFilterSnap(area, this.scales.zoom, "x")(this.scales.x.getBoundaries());
 	var boundariesY = zoomFilterSnap(area, this.scales.zoom, "y")(this.scales.y.getBoundaries());
 
+	this.calculateMemory(boundariesY);
 
-	// //////////////////////    Grid by canvas    //////////////////////
-	// c.strokeStyle = "#AAAAAA";
-	// c.fillStyle = "#000000";
-
-	// // Vertical lines for sequence boundaries along the x-axis
-	// c.font="10px Arial";
-	// c.textAlign = "right";
-	// for (var i = 0; i < boundariesX.length; i++) {
-	// 	// Scale has already been applied inside getBoundaries()
-	// 	c.moveTo(boundariesX[i].start,0);
-	// 	c.lineTo(boundariesX[i].start,this.state.layout.inner.height);
-	// }
-
-	// // Horizontal lines for sequence boundaries along the y-axis
-	// c.font="10px Arial";
-	// c.textAlign = "right";
-
-	// for (var i = 0; i < boundariesY.length; i++) {
-	// 	// Scale has already been applied inside getBoundaries()
-	// 	c.moveTo(0,boundariesY[i].start);
-	// 	c.lineTo(this.state.layout.inner.width, boundariesY[i].start);
-	// }
-	// c.stroke();
-
-	//////////////////////    Grid by svg    //////////////////////
+	////////////////////////    Grid    //////////////////////
 
 	var verticalLines = this.svg.select("g.innerPlot")
 		.selectAll("line.verticalGrid").data(boundariesX);
@@ -773,28 +753,6 @@ DotPlot.prototype.drawGrid = function() {
 		.style("font-size", this.styles["font size"])
 		.style("cursor", "pointer")
 		.on("click", setQuery);
-
-	var queryIndex = this.state.queryIndex;
-
-	var showRepetitiveAlignments = this.styles["show repetitive alignments"];
-
-	var loaded = function(query) {
-		if (queryIndex[query] === undefined) {
-			return false;
-		}
-		if (!queryIndex[query]["loaded_unique"]) {
-			return false;
-		}
-		if (showRepetitiveAlignments && queryIndex[query]["loaded_repetitive"] === false) {
-			return false;
-		}
-		return true;
-	}
-	// if (this.styles["highlight loaded queries"]) {
-	// 	yLabels.style("fill", function(d) {if (loaded(d.name)) {return "green"} else {return "black"}})
-	// } else {
-		yLabels.style("fill", function(d) {return "black"})
-	// }
 }
 
 DotPlot.prototype.drawAlignments = function() {
@@ -939,7 +897,7 @@ DotPlot.prototype.drawAlignments = function() {
 DotPlot.prototype.style_schema = function() {
 	var styles = [
 		{name: "Fundamentals", type: "section"},
-		{name: "show repetitive alignments", type: "bool", default: false},
+		{name: "show repetitive alignments", type: "bool", default: true},
 		// {name: "highlight loaded queries", type: "bool", default: true},
 
 		{name: "Alignments", type: "section"},
@@ -1207,7 +1165,6 @@ Track.prototype.drawAnnotationSymbols = function() {
 	}
 
 	var minFeatureLength = this.styles["minimum feature length (bp)"];
-	console.log("minFeatureLength:", minFeatureLength);
 	var longEnough = function(d) {
 		return d.length >= minFeatureLength;
 	}
@@ -1427,11 +1384,20 @@ var DotApp = function(element, config) {
 
 	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
 
-	this.style_panel = this.element.append("div")
-		.attr("id","UI_container")
+	this.panel = this.element.append("div")
 		.style("width", config.width * frac + "px")
-		.style("display", "inline-block")
 		.style("vertical-align", "top")
+		.style("display", "inline-block");
+
+	this.action_panel = this.panel.append("div")
+		.attr("id", "action_panel");
+
+	this.action_panel.append("h4").text("Load all alignments in view from coordinate file")
+	this.action_panel.append("button").attr("class", "load_unique").style("width", "100%").text("Load unique");
+	this.action_panel.append("button").attr("class", "load_repetitive").style("width", "100%").text("Load repetitive");
+
+	this.style_panel = this.panel.append("div")
+		.attr("id","UI_container")
 		.call(d3.superUI().object(this.dotplot));
 
 	this.messageCallback = function(message, sentiment) {
@@ -1441,6 +1407,26 @@ var DotApp = function(element, config) {
 	if (typeof(config.messageCallback) === "function") {
 		this.messageCallback = config.messageCallback;
 	}
+}
+
+
+const memFormat = function(x) {
+	return `${Math.round(x/10000)/100} Mb`;
+}
+
+DotApp.prototype.updateMemoryButtons = function(memUnique, memRepetitive) {
+	var plot = this.dotplot;
+
+	this.action_panel.select(".load_unique")
+		.text(memUnique === 0 ? ("Unique: Fully loaded") : (`Load unique (${memFormat(memUnique)})`))
+		.on("click", function() {plot.loadAllInView("unique")})
+		.property("disabled", memUnique === 0);
+	
+	this.action_panel.select(".load_repetitive")
+		.text(memRepetitive === 0 ? ("Repetitive: Fully loaded") : (`Load repetitive (${memFormat(memRepetitive)})`))
+		.on("click", function() {plot.loadAllInView("repetitive")})
+		.property("disabled", memRepetitive === 0);
+
 }
 
 DotApp.prototype.setData = function(data) {

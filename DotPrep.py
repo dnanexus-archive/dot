@@ -431,7 +431,7 @@ def main():
 	parser.add_argument("--delta",help="delta file" ,dest="delta", type=str, required=True)
 	parser.add_argument("--out",help="output file" ,dest="out", type=str, default="output")
 	parser.add_argument("--unique-length",help="The total length of unique sequence an alignment must have on the query side to be retained. Default: 10000" ,dest="unique_length",type=int, default=10000)
-	parser.add_argument("--overview",help="The number of alignments to include in the coords.idx output file, which will be shown in the overview for Dot" ,dest="overview",type=int, default=10000)
+	parser.add_argument("--overview",help="The number of alignments to include in the coords.idx output file, which will be shown in the overview for Dot. Default: 1000" ,dest="overview",type=int, default=1000)
 	parser.set_defaults(func=run)
 	args=parser.parse_args()
 	args.func(args)
