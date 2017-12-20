@@ -65,7 +65,15 @@
 		<div class="panel panel-default">
 			<div class="panel-heading">Information</div>
 			<div class="panel-body">
-				Dot is open source at <a href="https://github.com/dnanexus/dot">https://github.com/dnanexus/dot</a>
+				<p>Dot is open source at <a href="https://github.com/dnanexus/dot">https://github.com/dnanexus/dot</a>.</p>
+				<p>On DNAnexus, the featured project <a href="https://platform.dnanexus.com/projects/F8vbb100q83Zg1K17gF0FVV8">MUMmer + Dot</a> contains a kit of things to get started with:
+				<ul>
+					<li>An Applet for running MUMmer's nucmer aligner that includes DotPrep.py</li>
+					<li>A shortcut to Dot that automatically creates the necessary access URLs for your files stored on DNAnexus</li>
+					<li>Example initial data and results of the Applet, ready to use in Dot</li>
+				</ul>
+				If you cannot make a free DNAnexus account, then just download the <a href="https://dnanexus.github.io/dot/DotPrep.py">DotPrep.py</a> script and run it on the output from MUMmer's nucmer aligner, which will give you the same results as the Applet on DNAnexus. 
+				</p>
 			</div>
 		</div>
 
@@ -134,22 +142,16 @@
 		// Define some examples
 		var examples = [
 			{
-				// Expires Dec 12, 2018
+				// Expires Dec 19, 2018
 				name: "Gorilla aligned to Human GRCh38",
 				hover: "Gorilla aligned to Human GRCh38",
-				urlSuffix: "?coords=https://dl.dnanex.us/F/D/YXJFb3f6v2pPBjP67GJqxQXY1j9b78VYG7JBJF1J/gorilla_to_GRCh38.coords&index=https://dl.dnanex.us/F/D/KVJG93xxZ3Gvgb1K2GXV0PkfbKGK7p0pK5xY3zXG/gorilla_to_GRCh38.coords.idx"
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/y2Q4kKfvx2k7JGfG0GZJqGxvb3P68Gg7BY9PpPZz/gorilla_to_GRCh38.coords&index=https://dl.dnanex.us/F/D/672jYZ7Q50YxFzzF2XX1VzJqXqp1kvQYbXGGgbjV/gorilla_to_GRCh38.coords.idx"
 			},
 			{
-				// Expires Dec 12, 2018
-				name: "Gorilla aligned to Human GRCh38, with human gene annotation",
-				hover: "Gorilla aligned to Human GRCh38",
-				urlSuffix: "?coords=https://dl.dnanex.us/F/D/YXJFb3f6v2pPBjP67GJqxQXY1j9b78VYG7JBJF1J/gorilla_to_GRCh38.coords&index=https://dl.dnanex.us/F/D/KVJG93xxZ3Gvgb1K2GXV0PkfbKGK7p0pK5xY3zXG/gorilla_to_GRCh38.coords.idx&annotations=https://dl.dnanex.us/F/D/XQ17P5Q8jKjq267V66Q3vB3kqXZgvgJg1PkYBBz6/gencode.v27.genes.bed"
-			},
-			{
-				// Expires Dec 12, 2018
+				// Expires Dec 19, 2018
 				name: "Tilapia aligned to Zebrafish",
 				hover: "Tilapia aligned to Zebrafish",
-				urlSuffix: "?coords=https://dl.dnanex.us/F/D/qVK43v1vZxj93b8Fzbx2BgQ3pGQJPPvJjK4Ggv0P/tilapia-zebrafish_dot.coords&index=https://dl.dnanex.us/F/D/B669f5qzBFv9X1BB70yb72Yfv51bQ45z8Ffx2Bg3/tilapia-zebrafish_dot.coords.idx&annotations=https://dl.dnanex.us/F/D/xq2B73JxBfjvyV0JzPk8kvJvfyb6Xkv5KP2z15Fx/Danio_rerio.GRCz10.91.bed,https://dl.dnanex.us/F/D/JVbZ8zK4VZ2P7pZvk0kZKZZGFK44ZX0Q05j8kQZQ/Oreochromis_niloticus.Orenil1.0.91.bed"
+				urlSuffix: "?coords=https://dl.dnanex.us/F/D/GjjBvV9QF86p0XQgVVFxJBxzXQ64X8YQ9j2zP2J2/tilapia-zebrafish_dot.coords&index=https://dl.dnanex.us/F/D/kqxgK5bJK1ffz3vGYVVQ5P83fQgK5BJ64jQ6KyzF/tilapia-zebrafish_dot.coords.idx&annotations=https://dl.dnanex.us/F/D/xq2B73JxBfjvyV0JzPk8kvJvfyb6Xkv5KP2z15Fx/Danio_rerio.GRCz10.91.bed,https://dl.dnanex.us/F/D/JVbZ8zK4VZ2P7pZvk0kZKZZGFK44ZX0Q05j8kQZQ/Oreochromis_niloticus.Orenil1.0.91.bed"
 			},
 		];
 
