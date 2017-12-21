@@ -31,6 +31,7 @@ var DotPlot = function(element, config) {
 		yAnnotations: [],
 		trackGetter: [],
 		numDrawRequests: 0,
+		zoom_stack: [],
 	};
 
 	this.scales = {x: null, y: null, zoom: {area: null, x: d3.scaleLinear(), y: d3.scaleLinear()}};
@@ -449,11 +450,36 @@ DotPlot.prototype.drawAnnotationTracks = function() {
 	}
 }
 
-DotPlot.prototype.resetZoom = function() {
-	this.state.isZoomed = false;
-	var s = this.scales.zoom.area;
+DotPlot.prototype.zoomOut = function() {
+	// Check for previous zoom states and use them, otherwise return to the original zoom
+	var s = undefined;
+	if (!R.isEmpty(this.state.zoom_stack)) {
+		s = this.state.zoom_stack.pop(); 
+	} else {
+		s = this.scales.zoom.area;
+		this.state.isZoomed = false;
+	}
+
 	this.scales.zoom.x.domain([s[0][0], s[1][0]]);
 	this.scales.zoom.y.domain([s[1][1], s[0][1]]);
+	this.draw();
+}
+
+DotPlot.prototype.resetZoom = function() {
+	this.state.zoom_stack = [];
+	this.zoomOut();
+}
+
+DotPlot.prototype.setZoom = function(zoomX, zoomY) {
+	// Save the current zoom level to the zoom_stack
+	const currentX = this.scales.zoom.x.domain();
+	const currentY = this.scales.zoom.y.domain();
+	this.state.zoom_stack.push([[currentX[0], currentY[1]], [currentX[1], currentY[0]]]);
+
+	// Go to the new zoom level
+	this.scales.zoom.x.domain(zoomX);
+	this.scales.zoom.y.domain(zoomY);
+	
 	this.draw();
 }
 
@@ -571,12 +597,11 @@ DotPlot.prototype.initializeZoom = function() {
 	var y = plot.scales.zoom.y;
 
 
-
-	function setZoom(s) {
-		x.domain([s[0][0], s[1][0]].map(x.invert, x));
-		y.domain([s[1][1], s[0][1]].map(y.invert, y));
-
-		plot.draw();
+	function zoom(s) {
+		const zoomX = [s[0][0], s[1][0]].map(x.invert, x);
+		const zoomY = [s[1][1], s[0][1]].map(y.invert, y);
+		
+		plot.setZoom(zoomX, zoomY);
 		brushArea.call(brush.move, null);
 	}
 
@@ -591,7 +616,8 @@ DotPlot.prototype.initializeZoom = function() {
 	function brushended() {
 		var s = d3.event.selection;
 		if (s !== null) {
-			setZoom(s);
+			zoom(s);
+
 			plot.state.isZoomed = true;
 		} else {
 			// check for double-click
@@ -600,8 +626,7 @@ DotPlot.prototype.initializeZoom = function() {
 			}
 			// zoom out
 			if (plot.state.isZoomed) {
-				plot.resetZoom();
-				plot.state.isZoomed = false;
+				plot.zoomOut();
 			} else {
 				plot.resetRefQuerySelections();
 			}
