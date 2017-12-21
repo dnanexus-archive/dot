@@ -1398,14 +1398,22 @@ Track.prototype.set_style = function(style,value) {
 
 var DotApp = function(element, config) {
 
-	this.element = element;
+	this.element = element.style("display","flex");
 
 	var frac = 0.25;
 
-	this.plot_element = this.element.append("div").attr("id", "dotplot")
+	this.mainLeft = this.element.append("div").attr("id", "mainLeft");
+
+	this.plot_element = this.mainLeft.append("div").attr("id", "dotplot")
 		.style("height", config.height + "px")
 		.style("width", config.width*(1-frac) + "px")
 		.style("display", "inline-block");
+
+	this.mainLeft.append("div")
+		.style("margin-left", "20px")
+		.style("margin-top", "20px")
+		.style("text-align", "center")
+		.text("Click and drag to zoom in, double-click to zoom out");
 
 	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
 
