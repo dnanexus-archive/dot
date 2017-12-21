@@ -43,6 +43,16 @@ d3.superUI = function() {
 						}
 					});
 
+		// Strings
+		rows.filter(function(d) {return d.type=="string"})
+			.append("td").attr("class","superUI-value")
+				.append("input")
+					.attr("type","text")
+					.property("value",my.current_style)
+					.on("change",function(d) {
+						my_object.set_style(d.name,this.value);
+					})
+
 		// Ranges
 		rows.filter(function(d) {return d.type=="range"})
 			.append("td").attr("class","superUI-value")

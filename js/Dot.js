@@ -570,8 +570,7 @@ DotPlot.prototype.layoutPlot = function() {
 		.attr("y", this.state.layout.whole.height-10)
 		.style("dominant-baseline","middle")
 		.style("text-anchor","middle")
-		.style("font-size", 20)
-		.text(this.k.x);
+		.style("font-size", 20);
 
 	// Query
 	this.svg.select("g.yTitle")
@@ -580,8 +579,8 @@ DotPlot.prototype.layoutPlot = function() {
 			.attr("transform", "rotate(-90)")
 			.style("dominant-baseline","middle")
 			.style("text-anchor","middle")
-			.style("font-size", 20)
-			.text(this.k.y);
+			.style("font-size", 20);
+
 }
 
 DotPlot.prototype.initializeZoom = function() {
@@ -672,6 +671,16 @@ DotPlot.prototype.drawGrid = function() {
 
 	// Translate everything relative to the inner plotting area
 	c.setTransform(1, 0, 0, 1, 0, 0);
+
+
+	// Ref
+	this.svg.select("text.xTitle")
+		.text(this.styles["x-axis title"]);
+
+	// Query
+	this.svg.select("g.yTitle")
+		.select("text.yTitle")
+			.text(this.styles["y-axis title"]);
 
 	/////////////////////////////////////////    Grid and axis labels    //////////////////////////////////////////
 
@@ -922,10 +931,11 @@ DotPlot.prototype.drawAlignments = function() {
 DotPlot.prototype.style_schema = function() {
 	var styles = [
 		{name: "Fundamentals", type: "section"},
-		{name: "show repetitive alignments", type: "bool", default: true},
-		// {name: "highlight loaded queries", type: "bool", default: true},
+		{name: "x-axis title", type: "string", default: "reference"},
+		{name: "y-axis title", type: "string", default: "query"},
 
 		{name: "Alignments", type: "section"},
+		{name: "show repetitive alignments", type: "bool", default: true},
 		{name: "minimum alignment length", type: "number", default: 0},
 		{name: "alignment symbol", type: "selection", default:"dotted ends", options: ["line","dotted ends"]},
 		{name: "alignment line thickness", type: "number", default: 2},
@@ -933,17 +943,17 @@ DotPlot.prototype.style_schema = function() {
 		{name: "color of unique reverse alignments", type: "color", default: "#87ba2d"},
 		{name: "color of repetitive alignments", type: "color", default: "#ef8717"},
 
-		{name: "Grid lines", type: "section"},
-		{name: "width of reference grid lines", type:"number", default: 0.2},
-		// {name: "width of reference grid lines", type:"number", default: 0.6},
-		{name: "color of reference grid lines", type:"color", default: "black"},
-		{name: "width of query grid lines", type:"number", default: 0},
-		// {name: "width of query grid lines", type:"number", default: 0.6},
-		{name: "color of query grid lines", type:"color", default: "black"},
-
 		{name: "Sequence labels", type: "section"},
 		{name: "rotate x-axis labels", type: "bool", default: true},
 		{name: "font size", type: "number", default: 10},
+
+		{name: "Grid lines", type: "section"},
+		{name: "width of reference grid lines", type:"number", default: 0.2},
+		{name: "color of reference grid lines", type:"color", default: "black"},
+		{name: "width of query grid lines", type:"number", default: 0},
+		{name: "color of query grid lines", type:"color", default: "black"},
+
+		
 
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
@@ -968,6 +978,7 @@ DotPlot.prototype.reset_styles = function() {
 DotPlot.prototype.set_style = function(style,value) {
 
 	this.styles[style] = value;
+
 	this.draw();
 }
 
