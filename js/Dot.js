@@ -616,7 +616,6 @@ DotPlot.prototype.initializeZoom = function() {
 		var s = d3.event.selection;
 		if (s !== null) {
 			zoom(s);
-
 			plot.state.isZoomed = true;
 		} else {
 			// check for double-click
@@ -882,12 +881,6 @@ DotPlot.prototype.drawAlignments = function() {
 	var longEnough = function(d) {
 		return (d.ref_end-d.ref_start) >= minAlignmentLength;
 	}
-
-	function trace(data) {
-		console.log(data);
-		return data;
-	}
-
 
 	for (var tag in tagColors) {
 		if (tag === "unique" || showRepetitiveAlignments) {
@@ -1221,6 +1214,7 @@ Track.prototype.drawAnnotationSymbols = function() {
 		, dataZoomed);
 	}
 	var _track = this;
+	var _app = _track.parent.parent;
 
 	let annotGroup = _track.element.select(".annotation_group");
 
@@ -1240,7 +1234,7 @@ Track.prototype.drawAnnotationSymbols = function() {
 
 	annots = annots.merge(newAnnots);
 
-	annots.on("click", function(d) { d.clicked = true; console.log(d); showMessage(d.hover); });
+	annots.on("click", function(d) {_app.showInInspector(d.hover)});
 
 	var trackThickness = xOrY === "x" ? _track.height() : _track.width();
 
@@ -1413,7 +1407,8 @@ var DotApp = function(element, config) {
 
 	var frac = 0.25;
 
-	this.mainLeft = this.element.append("div").attr("id", "mainLeft");
+	this.mainLeft = this.element.append("div").attr("id", "mainLeft")
+		.style("margin", "20px");
 
 	this.plot_element = this.mainLeft.append("div").attr("id", "dotplot")
 		.style("height", config.height + "px")
@@ -1423,8 +1418,17 @@ var DotApp = function(element, config) {
 	this.mainLeft.append("div")
 		.style("margin-left", "20px")
 		.style("margin-top", "20px")
+		.style("margin-bottom", "20px")
 		.style("text-align", "center")
-		.text("Click and drag to zoom in, double-click to zoom out");
+		.text("Click and drag to zoom in, double-click to zoom out.");
+
+	this.mainLeft.append("h3").text("Inspector");
+	this.mainLeft.append("p").text("Click on annotations to inspect them here:");
+	this.inspector = this.mainLeft.append("textarea")
+		.text("")
+		.attr("id","inspector")
+		.style("width", "100%")
+		.attr("rows", 20);
 
 	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
 
@@ -1456,6 +1460,11 @@ var DotApp = function(element, config) {
 
 const memFormat = function(x) {
 	return `${Math.round(x/10000)/100} Mb`;
+}
+
+DotApp.prototype.showInInspector = function(text) {
+	const old = this.inspector.property("value");
+	this.inspector.property("value", old + "\n" + text);
 }
 
 DotApp.prototype.updateMemoryButtons = function(memUnique, memRepetitive) {
