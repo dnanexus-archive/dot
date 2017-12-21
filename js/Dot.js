@@ -1422,13 +1422,16 @@ var DotApp = function(element, config) {
 		.style("text-align", "center")
 		.text("Click and drag to zoom in, double-click to zoom out.");
 
-	this.mainLeft.append("h3").text("Inspector");
-	this.mainLeft.append("p").text("Click on annotations to inspect them here:");
-	this.inspector = this.mainLeft.append("textarea")
+
+	this.inspectorArea = this.mainLeft.append("div").attr("id", "inspectorArea")
+		.style("display", "none");
+	this.inspectorArea.append("h3").text("Inspector");
+	this.inspectorArea.append("p").text("Click on annotations to inspect them here:");
+	this.inspector = this.inspectorArea.append("textarea")
 		.text("")
 		.attr("id","inspector")
 		.style("width", "100%")
-		.attr("rows", 20);
+		.attr("rows", 10);
 
 	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
 
@@ -1497,6 +1500,8 @@ DotApp.prototype.setCoords = function(coords, index) {
 
 DotApp.prototype.addAnnotationData = function(dataset) {
 	this.dotplot.addAnnotationData(dataset);
+
+	this.mainLeft.select("#inspectorArea").style("display", "block");
 }
 
 DotApp.prototype.styleTrack = function(trackKey) {
