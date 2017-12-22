@@ -832,6 +832,7 @@ DotPlot.prototype.drawGrid = function() {
 	var yLabels = this.svg.select("g.innerPlot")
 		.selectAll("text.yLabels").data(boundariesY);
 
+	var yLabelLeft = -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left;
 	yLabels.exit().remove();
 
 	var newYLabels = yLabels.enter().append("text")
@@ -839,7 +840,7 @@ DotPlot.prototype.drawGrid = function() {
 		.style("text-anchor","end")
 
 	var yLabels = yLabels.merge(newYLabels)
-		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
+		.attr("x", yLabelLeft)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(displayName)
 		.style("font-size", this.styles["font size (Y-axis labels)"])
@@ -870,7 +871,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	basepairLabelsX
 		.style("display", showBaseCoordinatesX ? "block" : "none")
-		.attr("transform", `translate(0, ${this.state.layout.inner.height + padding})`);
+		.attr("transform", `translate(0, ${labelHeight + padding})`);
 
 	// Show start coordinate
 	basepairLabelsX.select("text.start")
@@ -912,7 +913,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	basepairLabelsY
 		.style("display", showBaseCoordinatesY ? "block" : "none")
-		.attr("transform", `translate(${-padding}, 0)`);
+		.attr("transform", `translate(${yLabelLeft-padding}, 0)`);
 
 	// Show start coordinate
 	basepairLabelsY.select("text.start")
@@ -1583,13 +1584,6 @@ var DotApp = function(element, config) {
 		.text("Showing up to 100 of the longest annotation features per track by default. Zoom in to see more details. To change this setting: hover on a track, click the pen icon, and edit the 'k longest annotations' number");
 	
 	
-	this.linkOutArea = this.mainLeft.append("div").attr("id", "linkOutArea")
-		.style("width", "100%");
-	this.linkOutArea.append("label").attr("id","UcscDbLabel").text("UCSC reference database:");
-	this.linkOutArea.append("input").attr("id","UcscDbInput")
-		.property("value", this.state.ucscDb)
-		.on("change", this.updateLinkValues.bind(this))
-
 	this.inspectorArea = this.mainLeft.append("div").attr("id", "inspectorArea")
 		.style("display", "none");
 	this.inspectorArea.append("h3").text("Inspector");
@@ -1599,6 +1593,14 @@ var DotApp = function(element, config) {
 		.attr("id","inspector")
 		.style("width", "100%")
 		.attr("rows", 10);
+
+
+	this.linkOutArea = this.mainLeft.append("div").attr("id", "linkOutArea")
+		.style("width", "100%");
+	this.linkOutArea.append("label").attr("id","UcscDbLabel").text("UCSC reference database:");
+	this.linkOutArea.append("input").attr("id","UcscDbInput")
+		.property("value", this.state.ucscDb)
+		.on("change", this.updateLinkValues.bind(this))
 
 
 	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: plotHeight, width: plotWidth});
