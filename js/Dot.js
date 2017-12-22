@@ -705,6 +705,21 @@ DotPlot.prototype.drawGrid = function() {
 
 	this.calculateMemory(boundariesY);
 
+
+	var gridWidth = 0.2; // this.styles["width of reference grid lines"]
+
+	var gridColor = "#000000" ; // this.styles["color of reference grid lines"]
+
+	const showRefGrid = this.styles["show grid lines (reference)"];
+
+	var displayGridRef = function(d) {if (Math.abs(d.end - d.start) > 5) {return "block"} else {return "none"}};
+	if (showRefGrid === "always") {
+		displayGridRef = "block";
+	}
+	else if (showRefGrid === "never") {
+		displayGridRef = "none";
+	}
+
 	////////////////////////    Grid    //////////////////////
 
 	var verticalLines = this.svg.select("g.innerPlot")
@@ -714,8 +729,9 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","verticalGrid");
 
 	verticalLines.merge(newVerticalLines)
-		.style("stroke", this.styles["color of reference grid lines"])
-		.style("stroke-width", this.styles["width of reference grid lines"])
+		.style("stroke", gridColor)
+		.style("stroke-width", gridWidth)
+		.style("display", displayGridRef)
 		.attr("x1", function(d) {return d.start})
 		.attr("y1", 0)
 		.attr("x2", function(d) {return d.start})
@@ -723,6 +739,15 @@ DotPlot.prototype.drawGrid = function() {
 
 	verticalLines.exit().remove();
 
+	const showQueryGrid = this.styles["show grid lines (query)"];
+
+	var displayGridQuery = function(d) {if (Math.abs(d.end - d.start) > 5) {return "block"} else {return "none"}};
+	if (showQueryGrid === "always") {
+		displayGridQuery = "block";
+	}
+	else if (showQueryGrid === "never") {
+		displayGridQuery = "none";
+	}
 
 	var horizontalLines = this.svg.select("g.innerPlot")
 		.selectAll("line.horizontalGrid").data(boundariesY);
@@ -731,8 +756,9 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("class","horizontalGrid");
 
 	horizontalLines.merge(newHorizontalLines)
-		.style("stroke", this.styles["color of query grid lines"])
-		.style("stroke-width",this.styles["width of query grid lines"])
+		.style("stroke", gridColor)
+		.style("stroke-width", gridWidth)
+		.style("display", displayGridQuery)
 		.attr("x1", 0)
 		.attr("y1", function(d) {return d.start})
 		.attr("x2", this.state.layout.inner.width)
@@ -771,7 +797,7 @@ DotPlot.prototype.drawGrid = function() {
 	newXLabels.append("text")
 		.style("text-anchor","end");
 
-	var labelHeight = this.state.layout.outer.height + this.styles["font size"];
+	var labelHeight = this.state.layout.outer.height + this.styles["font size (X-axis labels)"];
 	xLabels = xLabels.merge(newXLabels)
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 
@@ -779,7 +805,7 @@ DotPlot.prototype.drawGrid = function() {
 	xLabels.select("text").datum(function(d) {return d})
 			.text(displayName)
 			.attr("transform", `rotate(${rotation})`)
-			.style("font-size", this.styles["font size"])
+			.style("font-size", this.styles["font size (X-axis labels)"])
 			.style("cursor", "pointer")
 			.on("click", setRef);
 
@@ -804,15 +830,16 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("x", -10 + this.state.layout.annotations.y.left - this.state.layout.inner.left)
 		.attr("y", function(d) {return inner.top + (d.start+d.end)/2})
 		.text(displayName)
-		.style("font-size", this.styles["font size"])
+		.style("font-size", this.styles["font size (Y-axis labels)"])
 		.style("cursor", "pointer")
 		.on("click", setQuery);
 
-	///////////////////     Scales     ///////////////////
+	///////////////////     Base-pair labels on X-axis    ///////////////////
 
 	const padding = 5;
-	
-	var showBaseCoordinates = this.styles["show basepair coordinates markers"];
+	var displayBasepairs = function(d) {if (Math.abs(d.end - d.start) > 70) {return "block"} else {return "none"}};
+
+	var showBaseCoordinatesX = this.styles["show basepair coordinates markers for reference"];
 
 	var basepairLabelsX = this.svg.select("g.innerPlot")
 		.selectAll("g.basepairLabelsX").data(boundariesX);
@@ -821,7 +848,7 @@ DotPlot.prototype.drawGrid = function() {
 
 	var newBasepairLabelsX = basepairLabelsX.enter().append("g")
 		.attr("class", "basepairLabelsX")
-		.attr("transform", `translate(0, ${this.state.layout.inner.height - padding})`);
+		
 	
 	newBasepairLabelsX.append("text").attr("class","start");
 	newBasepairLabelsX.append("text").attr("class","end");
@@ -829,22 +856,69 @@ DotPlot.prototype.drawGrid = function() {
 
 	var basepairLabelsX = basepairLabelsX.merge(newBasepairLabelsX);
 
-	const display = function(d) {if (Math.abs(d.end - d.start) > 70) {return "block"} else {return "none"}};
+	basepairLabelsX
+		.style("display", showBaseCoordinatesX ? "block" : "none")
+		.attr("transform", `translate(0, ${this.state.layout.inner.height + padding})`);
 
 	// Show start coordinate
 	basepairLabelsX.select("text.start")
 		.attr("x", function(d) {return d.start + padding})
 		.style("text-anchor","start")
-		.style("display", display)
-		.style("font-size", this.styles["font size"])
+		.style("display", displayBasepairs)
+		.style("dominant-baseline","text-before-edge")
+		.style("font-size", this.styles["font size (basepair coordinates)"])
 		.text(function(d) {return baseFormat(d.startBases)});
 
 	// Show end coordinate
 	basepairLabelsX.select("text.end")
 		.attr("x", function(d) {return d.end - padding})
 		.style("text-anchor","end")
-		.style("display", display)
-		.style("font-size", this.styles["font size"])
+		.style("display", displayBasepairs)
+		.style("dominant-baseline","text-before-edge")
+		.style("font-size", this.styles["font size (basepair coordinates)"])
+		.text(function(d) {return baseFormat(d.endBases)});
+
+
+	///////////////////     Base-pair labels on Y-axis    ///////////////////
+
+	var showBaseCoordinatesY = this.styles["show basepair coordinates markers for query"];
+
+	var basepairLabelsY = this.svg.select("g.innerPlot")
+		.selectAll("g.basepairLabelsY").data(boundariesY);
+
+	console.log(boundariesY);
+
+	basepairLabelsY.exit().remove();
+
+	var newBasepairLabelsY = basepairLabelsY.enter().append("g")
+		.attr("class", "basepairLabelsY")
+	
+	newBasepairLabelsY.append("text").attr("class","start");
+	newBasepairLabelsY.append("text").attr("class","end");
+	
+
+	var basepairLabelsY = basepairLabelsY.merge(newBasepairLabelsY);
+
+	basepairLabelsY
+		.style("display", showBaseCoordinatesY ? "block" : "none")
+		.attr("transform", `translate(${-padding}, 0)`);
+
+	// Show start coordinate
+	basepairLabelsY.select("text.start")
+		.attr("y", function(d) {return d.start - padding})
+		.style("text-anchor","end")
+		.style("dominant-baseline","ideographic")
+		.style("display", displayBasepairs)
+		.style("font-size", this.styles["font size (basepair coordinates)"])
+		.text(function(d) {return baseFormat(d.startBases)});
+
+	// Show end coordinate
+	basepairLabelsY.select("text.end")
+		.attr("y", function(d) {return d.end})
+		.style("text-anchor","end")
+		.style("dominant-baseline","text-before-edge")
+		.style("display", displayBasepairs)
+		.style("font-size", this.styles["font size (basepair coordinates)"])
 		.text(function(d) {return baseFormat(d.endBases)});
 
 }
@@ -999,22 +1073,15 @@ DotPlot.prototype.style_schema = function() {
 
 		{name: "Sequence labels", type: "section"},
 		{name: "rotate x-axis labels", type: "bool", default: true},
-		{name: "font size", type: "number", default: 10},
+		{name: "font size (X-axis labels)", type: "number", default: 10},
+		{name: "font size (Y-axis labels)", type: "number", default: 10},
 
 		{name: "Grid lines", type: "section"},
-		{name: "show basepair coordinates markers", type: "bool", default: true},
-		{name: "width of reference grid lines", type:"number", default: 0.2},
-		{name: "color of reference grid lines", type:"color", default: "black"},
-		{name: "width of query grid lines", type:"number", default: 0},
-		{name: "color of query grid lines", type:"color", default: "black"},
-
-
-		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
-		// {name:"a range", type:"range", default:2},
-		// {name:"a bool", type:"bool", default:true},
-		// {name:"a selection", type:"selection", default:"B", options: ["A","B","C","D"]},
-
-
+		{name: "show grid lines (reference)", type: "selection", default: "always", options: ["always", "zoom", "never"]},
+		{name: "show grid lines (query)", type: "selection", default: "never", options: ["always", "zoom", "never"]},
+		{name: "show basepair coordinates markers for reference", type: "bool", default: true},
+		{name: "show basepair coordinates markers for query", type: "bool", default: true},
+		{name: "font size (basepair coordinates)", type: "number", default: 10},
 
 	];
 
