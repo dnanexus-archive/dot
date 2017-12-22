@@ -308,8 +308,8 @@ VTTGlobal.layout = {
 	margin: {
 		top: 100,
 		left: 80,
-		right: 100,
-		bottom: 80
+		right: 20,
+		bottom: 10,
 	}
 };
 
