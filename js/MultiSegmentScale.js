@@ -57,7 +57,9 @@ MultiSegmentScale.prototype.getBoundaries = function() {
 		boundaries.push({
 			name: key, 
 			start: this.hidden_scale(this.offset_dict[key]), 
-			end: this.hidden_scale(this.offset_dict[key]+this.size_dict[key])});
+			end: this.hidden_scale(this.offset_dict[key]+this.size_dict[key]),
+			length: this.size_dict[key],
+		});
 	}
 	return boundaries;
 }

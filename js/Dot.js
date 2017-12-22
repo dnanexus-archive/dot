@@ -652,17 +652,32 @@ function zoomFilterSnap(area, zoomScales, side) {
 	}
 	var zoomSnap = function(xOrY) {
 		return R.map(function(d) {
+			const basesPerPixel = d.length/(Math.abs(d.end-d.start));
+			d.startBases = 0;
 			if (!inside(xOrY)(d.start)) {
+				d.startBases = basesPerPixel * Math.abs(d.start-area[xOrY][xOrY]);
 				d.start = area[xOrY][xOrY];
 			}
+			d.endBases = d.length;
 			if (!inside(xOrY)(d.end)) {
+				d.endBases = d.length - (basesPerPixel * Math.abs(d.end-area[Number(!xOrY)][xOrY]));
 				d.end = area[Number(!xOrY)][xOrY];
 			}
+			// d.basesPerPixel = basesPerPixel;
+			// d.basesShown1 = basesPerPixel*Math.abs(d.end-d.start);
+			// d.basesShown2 = d.endBases - d.startBases;
 			return d;
 		});
 	};
 	return R.compose(zoomSnap(xOrY), zoomFilter(xOrY), zoomTransform);
 }
+const baseFormat = function(x) {
+	if (x === 0) {
+		return "0";
+	}
+	return `${Math.round(x/10000)/100} Mb`;
+}
+
 
 DotPlot.prototype.drawGrid = function() {
 
@@ -725,20 +740,11 @@ DotPlot.prototype.drawGrid = function() {
 
 	horizontalLines.exit().remove();
 
-
-	//////////////////////    Labels by svg    //////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////    Labels   ////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	var _this = this;
-
-	function setRef(d, i) {
-		_this.selectRefs([d.name]);
-	}
-
-	function setQuery(d, i) {
-		_this.selectQueries([d.name]);
-	}
-
-	var xLabels = this.svg.select("g.innerPlot")
-		.selectAll("g.xLabels").data(boundariesX);
 
 	function displayName(d) {
 		if (Math.abs(d.end - d.start) > 5) {
@@ -747,6 +753,15 @@ DotPlot.prototype.drawGrid = function() {
 			return ".";
 		}
 	}
+
+	///////////////////     Sequence labels on X-axis    ///////////////////
+
+	function setRef(d, i) {
+		_this.selectRefs([d.name]);
+	}
+	
+	var xLabels = this.svg.select("g.innerPlot")
+		.selectAll("g.xLabels").data(boundariesX);
 
 	var newXLabels = xLabels.enter().append("g")
 		.attr("class","xLabels")
@@ -768,6 +783,12 @@ DotPlot.prototype.drawGrid = function() {
 			.style("cursor", "pointer")
 			.on("click", setRef);
 
+	///////////////////     Sequence labels on Y-axis    ///////////////////
+
+	function setQuery(d, i) {
+		_this.selectQueries([d.name]);
+	}
+
 	var inner = this.state.layout.inner;
 
 	var yLabels = this.svg.select("g.innerPlot")
@@ -786,6 +807,46 @@ DotPlot.prototype.drawGrid = function() {
 		.style("font-size", this.styles["font size"])
 		.style("cursor", "pointer")
 		.on("click", setQuery);
+
+	///////////////////     Scales     ///////////////////
+
+	const padding = 5;
+	
+	var showBaseCoordinates = this.styles["show basepair coordinates markers"];
+
+	var basepairLabelsX = this.svg.select("g.innerPlot")
+		.selectAll("g.basepairLabelsX").data(boundariesX);
+
+	basepairLabelsX.exit().remove();
+
+	var newBasepairLabelsX = basepairLabelsX.enter().append("g")
+		.attr("class", "basepairLabelsX")
+		.attr("transform", `translate(0, ${this.state.layout.inner.height - padding})`);
+	
+	newBasepairLabelsX.append("text").attr("class","start");
+	newBasepairLabelsX.append("text").attr("class","end");
+	
+
+	var basepairLabelsX = basepairLabelsX.merge(newBasepairLabelsX);
+
+	const display = function(d) {if (Math.abs(d.end - d.start) > 70) {return "block"} else {return "none"}};
+
+	// Show start coordinate
+	basepairLabelsX.select("text.start")
+		.attr("x", function(d) {return d.start + padding})
+		.style("text-anchor","start")
+		.style("display", display)
+		.style("font-size", this.styles["font size"])
+		.text(function(d) {return baseFormat(d.startBases)});
+
+	// Show end coordinate
+	basepairLabelsX.select("text.end")
+		.attr("x", function(d) {return d.end - padding})
+		.style("text-anchor","end")
+		.style("display", display)
+		.style("font-size", this.styles["font size"])
+		.text(function(d) {return baseFormat(d.endBases)});
+
 }
 
 DotPlot.prototype.drawAlignments = function() {
@@ -941,12 +1002,12 @@ DotPlot.prototype.style_schema = function() {
 		{name: "font size", type: "number", default: 10},
 
 		{name: "Grid lines", type: "section"},
+		{name: "show basepair coordinates markers", type: "bool", default: true},
 		{name: "width of reference grid lines", type:"number", default: 0.2},
 		{name: "color of reference grid lines", type:"color", default: "black"},
 		{name: "width of query grid lines", type:"number", default: 0},
 		{name: "color of query grid lines", type:"color", default: "black"},
 
-		
 
 		// {name:"a percentage", type:"percentage", default:0.0015, min:0, max:0.1, step:0.0005},
 		// {name:"a range", type:"range", default:2},
@@ -1422,7 +1483,6 @@ var DotApp = function(element, config) {
 		.style("text-align", "center")
 		.text("Click and drag to zoom in, double-click to zoom out.");
 
-
 	this.inspectorArea = this.mainLeft.append("div").attr("id", "inspectorArea")
 		.style("display", "none");
 	this.inspectorArea.append("h3").text("Inspector");
@@ -1462,7 +1522,7 @@ var DotApp = function(element, config) {
 
 
 const memFormat = function(x) {
-	return `${Math.round(x/10000)/100} Mb`;
+	return `${Math.round(x/10000)/100} MB`;
 }
 
 DotApp.prototype.showInInspector = function(text) {
