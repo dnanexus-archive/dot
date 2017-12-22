@@ -655,12 +655,12 @@ function zoomFilterSnap(area, zoomScales, side) {
 			const basesPerPixel = d.length/(Math.abs(d.end-d.start));
 			d.startBases = 0;
 			if (!inside(xOrY)(d.start)) {
-				d.startBases = basesPerPixel * Math.abs(d.start-area[xOrY][xOrY]);
+				d.startBases = Math.round(basesPerPixel * Math.abs(d.start-area[xOrY][xOrY]));
 				d.start = area[xOrY][xOrY];
 			}
 			d.endBases = d.length;
 			if (!inside(xOrY)(d.end)) {
-				d.endBases = d.length - (basesPerPixel * Math.abs(d.end-area[Number(!xOrY)][xOrY]));
+				d.endBases = Math.round(d.length - (basesPerPixel * Math.abs(d.end-area[Number(!xOrY)][xOrY])));
 				d.end = area[Number(!xOrY)][xOrY];
 			}
 			// d.basesPerPixel = basesPerPixel;
@@ -704,7 +704,6 @@ DotPlot.prototype.drawGrid = function() {
 	var boundariesY = zoomFilterSnap(area, this.scales.zoom, "y")(this.scales.y.getBoundaries());
 
 	this.calculateMemory(boundariesY);
-
 
 	var gridWidth = 0.2; // this.styles["width of reference grid lines"]
 
@@ -886,7 +885,6 @@ DotPlot.prototype.drawGrid = function() {
 	var basepairLabelsY = this.svg.select("g.innerPlot")
 		.selectAll("g.basepairLabelsY").data(boundariesY);
 
-	console.log(boundariesY);
 
 	basepairLabelsY.exit().remove();
 
@@ -921,6 +919,8 @@ DotPlot.prototype.drawGrid = function() {
 		.style("font-size", this.styles["font size (basepair coordinates)"])
 		.text(function(d) {return baseFormat(d.endBases)});
 
+	// Record positions for links
+	this.parent.updateLinkPositions(boundariesX);
 }
 
 DotPlot.prototype.drawAlignments = function() {
@@ -1535,6 +1535,11 @@ var DotApp = function(element, config) {
 
 	var frac = 0.25;
 
+	this.state = {
+		ucscDb: "hg38",
+		positions: [],
+	}
+
 	this.mainLeft = this.element.append("div").attr("id", "mainLeft")
 		.style("margin", "20px");
 
@@ -1550,6 +1555,13 @@ var DotApp = function(element, config) {
 		.style("text-align", "center")
 		.text("Click and drag to zoom in, double-click to zoom out.");
 
+	this.linkOutArea = this.mainLeft.append("div").attr("id", "linkOutArea");
+	this.linkOutArea.append("label").attr("id","UcscDbLabel").text("UCSC reference database:");
+	this.linkOutArea.append("input").attr("id","UcscDbInput")
+		.property("value", this.state.ucscDb)
+		.on("change", this.updateLinkValues.bind(this))
+
+	
 	this.inspectorArea = this.mainLeft.append("div").attr("id", "inspectorArea")
 		.style("display", "none");
 	this.inspectorArea.append("h3").text("Inspector");
@@ -1595,6 +1607,46 @@ const memFormat = function(x) {
 DotApp.prototype.showInInspector = function(text) {
 	const old = this.inspector.property("value");
 	this.inspector.property("value", old + "\n" + text);
+}
+
+DotApp.prototype.updateLinks = function() {
+	console.log("updateLinks", this.state.ucscDb, this.state.positions);
+
+	const db = this.state.ucscDb;
+	const positions = this.state.positions;
+	console.log(positions);
+
+	const base = "https://genome.ucsc.edu/cgi-bin/hgTracks?db=";
+
+	var links = [];
+	for (var i = 0; i < positions.length; i++) {
+		var d = positions[i]
+		links.push({text: `UCSC (${db}): ${d.name}:${d.startBases}-${d.endBases}`, href: base + db + `&position=${d.name}:${d.startBases}-${d.endBases}`});
+	}
+
+	var linkElements = this.linkOutArea.selectAll("a").data(links);
+	
+	var newLinkElements = linkElements.enter().append("a");
+
+	linkElements.exit().remove();
+	
+	linkElements.merge(newLinkElements)
+		.style("display", "block")
+		.attr("target", "_blank")
+		.attr("href", function(d) {return d.href})
+		.text(function(d) {return d.text});
+}
+
+DotApp.prototype.updateLinkValues = function() {
+	this.state.ucscDb = this.linkOutArea.select("#UcscDbInput").property("value");
+
+	this.updateLinks();
+}
+
+DotApp.prototype.updateLinkPositions = function(positions) {
+	this.state.positions = positions;
+
+	this.updateLinks();
 }
 
 DotApp.prototype.updateMemoryButtons = function(memUnique, memRepetitive) {
