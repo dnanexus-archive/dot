@@ -73,10 +73,11 @@ DotPlot.prototype.setData = function(data) {
 	this.data = data;
 
 	// Set reference and query sequence sizes:
-	this.state.allRefs = R.compose( R.uniq, R.map(R.props(["ref", "ref_length"])))(data);
+	this.state.allRefs = R.compose( R.uniq, R.map(String), R.map(R.props(["ref", "ref_length"])))(data);
 	this.state.allQueries = R.compose( R.uniq, R.map(R.props(["query", "query_length"])))(data);
 
 	this.initializePlot();
+
 
 }
 
@@ -98,13 +99,19 @@ DotPlot.prototype.initializePlot = function(data) {
 	this.draw();
 }
 
+const stringFirst = function(d){
+	return [String(d[0]), d[1]];
+}
+
 DotPlot.prototype.setCoords = function(coords, index) {
 	this.coords = coords;
 
 	this.parseIndex(index);
+	
 
-	this.state.allRefs = R.map(R.props(["ref","ref_length"]), this.state.refInfo);
-	this.state.allQueries = R.map(R.props(["query","query_length"]), this.state.queryInfo)
+	this.state.allRefs = R.compose(R.map(stringFirst), R.map(R.props(["ref","ref_length"])))(this.state.refInfo);
+	
+	this.state.allQueries = R.compose(R.map(stringFirst), R.map(R.props(["query","query_length"])))(this.state.queryInfo);
 
 	this.initializePlot();
 }
@@ -179,7 +186,7 @@ DotPlot.prototype.parseIndex = function(index) {
 		}
 	}
 
-	var parseCSV = function(CSVString) {
+	const parseCSV = function(CSVString) {
 		var parsed = Papa.parse(CSVString, {header: true, dynamicTyping: true, skipEmptyLines: true});
 		if (parsed.errors.length > 0) {
 			console.log(CSVString)
@@ -190,12 +197,17 @@ DotPlot.prototype.parseIndex = function(index) {
 		return parsed.data;
 	}
 
-	var splitBySquiggly = function(prop, arr) {
+	const splitBySquiggly = R.curry(function(prop, arr) {
 		return R.map(function(d) {d[prop] = String(d[prop]).split("~"); return d}, arr);
-	};
+	});
 
-	this.state.refInfo = splitBySquiggly("matching_queries", parseCSV(refCSV));
-	this.state.queryInfo = splitBySquiggly("matching_refs", parseCSV(queryCSV));
+	const stringifyProp = R.curry(function(prop, d) {
+		d[prop] = String(d[prop]);
+		return d;
+	});
+
+	this.state.refInfo = R.compose(R.map(stringifyProp("ref")), splitBySquiggly("matching_queries"), parseCSV)(refCSV);
+	this.state.queryInfo =  R.compose(R.map(stringifyProp("query")), splitBySquiggly("matching_refs"), parseCSV)(queryCSV);
 
 	this.state.queryIndex = R.zipObj(R.pluck("query", this.state.queryInfo), this.state.queryInfo);
 
@@ -350,12 +362,13 @@ DotPlot.prototype.selectRefs = function(refNames) {
 	var state = this.state;
 
 	state.selectedRefs = R.filter(function(d) {return R.contains(d[0], refNames)}, state.allRefs);
-
+	
 	var matchNames = R.filter(function(d) {return R.contains(d.ref, refNames)});
 	var getQueries = R.compose(R.uniq, R.flatten, R.pluck("matching_queries"), matchNames);
 	var queryNames = getQueries(state.refInfo);
 
 	state.selectedQueries = R.filter(function(d) {return R.contains(d[0], queryNames)}, state.allQueries);
+
 
 	this.seqSelectionDidChange();
 }
@@ -801,7 +814,7 @@ DotPlot.prototype.drawGrid = function() {
 		.attr("transform",function(d) {return "translate(" + (d.start+d.end)/2 + "," + labelHeight + ")"})
 
 	var rotation = this.styles["rotate x-axis labels"] ? -45 : 0;
-	xLabels.select("text").datum(function(d) {return d})
+	xLabels.select("text")
 			.text(displayName)
 			.attr("transform", `rotate(${rotation})`)
 			.style("font-size", this.styles["font size (X-axis labels)"])
@@ -1626,12 +1639,9 @@ DotApp.prototype.showInInspector = function(text) {
 }
 
 DotApp.prototype.updateLinks = function() {
-	console.log("updateLinks", this.state.ucscDb, this.state.positions);
 
 	const db = this.state.ucscDb;
 	const positions = this.state.positions;
-	console.log(positions);
-
 	const base = "https://genome.ucsc.edu/cgi-bin/hgTracks?db=";
 
 	var links = [];
