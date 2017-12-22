@@ -1493,8 +1493,6 @@ Track.prototype.style_schema = function() {
 	const styles = [
 		{name: "Filters", type: "section"},
 		{name: "minimum feature length (bp)", type: "number", default: 0},
-
-		{name: "Annotation count", type: "section"},
 		{name: "k longest annotations", type: "number", default: 100},
 
 		{name: "Arrows", type: "section"},
@@ -1540,35 +1538,45 @@ var DotApp = function(element, config) {
 
 	this.element = element.style("display","flex");
 
-	var frac = 0.25;
+	const frac = 0.30;
+	const padding = 40;
 
 	this.state = {
 		ucscDb: "hg38",
 		positions: [],
 	}
+	const plotWidth = config.width*(1-frac) - padding;
+	const plotHeight = Math.min(plotWidth*0.80, config.height);
 
 	this.mainLeft = this.element.append("div").attr("id", "mainLeft")
-		.style("margin", "20px");
+		.style("width", plotWidth + "px")
+		.style("margin", "10px")
+		.style("margin-right", padding + "px")
 
 	this.plot_element = this.mainLeft.append("div").attr("id", "dotplot")
-		.style("height", config.height + "px")
-		.style("width", config.width*(1-frac) + "px")
+		.style("height", plotHeight + "px")
 		.style("display", "inline-block");
 
-	this.mainLeft.append("div")
+	this.instructions = this.mainLeft.append("div")
 		.style("margin-left", "20px")
 		.style("margin-top", "20px")
 		.style("margin-bottom", "20px")
-		.style("text-align", "center")
-		.text("Click and drag to zoom in, double-click to zoom out.");
+		.style("text-align", "center");
 
-	this.linkOutArea = this.mainLeft.append("div").attr("id", "linkOutArea");
+	this.instructions.append("p").text("Click and drag to zoom in, double-click to zoom out.");
+
+	this.instructions.append("p").attr("id", "annotMessage")
+		.style("display", "none")
+		.text("Showing up to 100 of the longest annotation features per track by default. Zoom in to see more details. To change this setting: hover on a track, click the pen icon, and edit the 'k longest annotations' number");
+	
+	
+	this.linkOutArea = this.mainLeft.append("div").attr("id", "linkOutArea")
+		.style("width", "100%");
 	this.linkOutArea.append("label").attr("id","UcscDbLabel").text("UCSC reference database:");
 	this.linkOutArea.append("input").attr("id","UcscDbInput")
 		.property("value", this.state.ucscDb)
 		.on("change", this.updateLinkValues.bind(this))
 
-	
 	this.inspectorArea = this.mainLeft.append("div").attr("id", "inspectorArea")
 		.style("display", "none");
 	this.inspectorArea.append("h3").text("Inspector");
@@ -1579,7 +1587,8 @@ var DotApp = function(element, config) {
 		.style("width", "100%")
 		.attr("rows", 10);
 
-	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: config.height, width: config.width*(1-frac)*.95});
+
+	this.dotplot = new DotPlot(this.plot_element, {parent: this, height: plotHeight, width: plotWidth});
 
 	this.panel = this.element.append("div")
 		.style("width", config.width * frac + "px")
@@ -1688,6 +1697,8 @@ DotApp.prototype.addAnnotationData = function(dataset) {
 	this.dotplot.addAnnotationData(dataset);
 
 	this.mainLeft.select("#inspectorArea").style("display", "block");
+	this.mainLeft.select("#annotMessage").style("display", "block");
+	
 }
 
 DotApp.prototype.styleTrack = function(trackKey) {
