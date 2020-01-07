@@ -2,7 +2,9 @@
 
 Dot is an interactive dot plot viewer for genome-genome alignments.
 
-Dot is publicly available here: [https://dnanexus.github.io/dot](https://dnanexus.github.io/dot)
+The current and read-write repo of Dot is currently available here: [http://github.com/marianattestad/dot](http://github.com/marianattestad/dot) under the management of Maria Nattestad.
+
+This read-only repo Dot is publicly available here: [https://dnanexus.github.io/dot](https://dnanexus.github.io/dot)
 And can also be used locally by cloning this repository and simply opening the index.html file in a web browser. 
 
 
